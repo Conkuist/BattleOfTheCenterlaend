@@ -20,7 +20,7 @@ und die Benutzeroberfläche besitzt noch Platzhalter und ist rein funktional geh
 Der Editor
 
 Erlaubt bereits das laden, verändern und speichern der BoardConfig.
-Dabei kann es jedoch noch vereinzelt zu Problemen kommen welche noch behoben werden müssen.
+Beim verändern der BoardConfig kann es jedoch noch vereinzelt zu Problemen kommen.
 Ein Bearbeiten der GameConfig wird derzeit noch nicht unterstützt.
 
 
