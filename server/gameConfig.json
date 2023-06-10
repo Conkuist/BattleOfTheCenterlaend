@@ -1,0 +1,10 @@
+{
+    "startLembas": 1,
+    "shotLembas": 3,
+    "cardSelectionTimeout": 30000,
+    "characterChoiceTimeout": 20000,
+    "riverMoveCount": 2,
+    "serverIngameDelay": 2000,
+    "reviveRounds": 0,
+    "maxRounds": 10
+}

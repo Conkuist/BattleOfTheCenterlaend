@@ -1,0 +1,72 @@
+Direction =
+{
+"NORTH" : "NORTH",
+"EAST" : "EAST",
+"SOUTH" : "SOUTH",
+"WEST" : "WEST"
+}
+
+Role =
+{
+"PLAYER" : "PLAYER",
+"SPECTATOR" : "SPECTATOR",
+"AI" : "AI"
+
+}
+
+Card =
+{
+"MOVE_3" : "MOVE_3",
+"MOVE_2" : "MOVE_2",
+"MOVE_1" : "MOVE_1",
+"MOVE_BACK" : "MOVE_BACK",
+"U_TURN" : "U_TURN",
+"RIGHT_TURN" : "RIGHT_TURN",
+"LEFT_TURN" : "LEFT_TURN",
+"AGAIN" : "AGAIN",
+"LEMBAS" : "LEMBAS",
+"EMPTY" : "EMPTY"
+}
+
+Character =
+{
+"FRODO" : "FRODO",
+"SAM" : "SAM",
+"LEGOLAS" : "LEGOLAS",
+"GIMLI" : "GIMLI",
+"GANDALF" : "GANDALF",
+"ARAGORN" : "ARAGORN",
+"GOLLUM" : "GOLLUM",
+"GALADRIEL" : "GALADRIEL",
+"BOROMIR" : "BOROMIR",
+"BAUMBART" : "BAUMBART",
+"MERRY" : "MERRY",
+"PIPPIN" : "PIPPIN",
+"ARWEN" : "ARWEN"
+}
+
+Message =
+{
+"ERROR" : "ERROR",                          // SERVER -> CLIENT
+"INVALID_MESSAGE" : "INVALID_MESSAGE",      // SERVER -> CLIENT
+"PARTICIPANTS_INFO" : "PARTICIPANTS_INFO",  // SERVER -> CLIENT
+"HELLO_SERVER" : "HELLO_SERVER",            // CLIENT -> SERVER
+"HELLO_CLIENT" : "HELLO_CLIENT",            // SERVER -> CLIENT
+"GOODBYE_SERVER" : "GOODBYE_SERVER",        // CLIENT -> SERVER
+"PLAYER_READY" : "PLAYER_READY",            // CLIENT -> SERVER
+"GAME_START" : "GAME_START",                // SERVER -> CLIENT
+"GAME_END" : "GAME_END",                    // SERVER -> CLIENT
+"RECONNECT" : "RECONNECT",                  // SERVER -> CLIENT
+"CHARACTER_OFFER" : "CHARACTER_OFFER",      // SERVER -> CLIENT
+"CHARACTER_CHOICE" : "CHARACTER_CHOICE",    // CLIENT -> SERVER
+"CARD_OFFER" : "CARD_OFFER",                // SERVER -> CLIENT
+"CARD_CHOICE" : "CARD_CHOICE",              // CLIENT -> SERVER
+"ROUND_START" : "ROUND_START",              // SERVER -> CLIENT
+"CARD_EVENT" : "CARD_EVENT",                // SERVER -> CLIENT
+"SHOT_EVENT" : "SHOT_EVENT",                // SERVER -> CLIENT
+"RIVER_EVENT" : "RIVER_EVENT",              // SERVER -> CLIENT
+"EAGLE_EVENT" : "EAGLE_EVENT",              // SERVER -> CLIENT
+"GAME_STATE" : "GAME_STATE",                // SERVER -> CLIENT
+"PAUSE_REQUEST" : "PAUSE_REQUEST",          // CLIENT -> SERVER
+"PAUSED" : "PAUSED"                         // SERVER -> CLIENT
+}

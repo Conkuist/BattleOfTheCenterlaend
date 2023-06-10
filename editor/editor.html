@@ -1,0 +1,603 @@
+<!doctype html>
+<html>
+<head>
+
+<title>Kein Editor</title>
+
+<meta charset = "utf-8">
+<style>
+body
+{
+  margin: 10px;
+  background: #222;
+}
+
+canvas
+{
+  display: block;
+  margin: auto;
+  box-shadow: #000 0 0 10px;
+}
+
+.color
+{
+  width: 100px;
+  height: 100px;
+  float:left;
+  margin: 0 10px 10px 0;
+}
+
+#wallButton
+{
+  background: red;
+}
+
+#eagleButton
+{
+  background: #804000;
+}
+
+#checkPointButton
+{
+  background: cyan;
+}
+
+#riverButton
+{
+  background: blue;
+}
+
+#startFieldButton
+{
+  background: yellow;
+}
+
+#lembasFieldButton
+{
+  background: lime;
+}
+
+#holeButton
+{
+  background: #404040;
+}
+
+#eyeButton
+{
+  background: #ff8000;
+}
+
+.button
+{
+    width: 200px;
+    height: 50px;
+    background: #444;
+    border-radius: 5px;
+    float: left;
+    line-height: 50px;
+    text-align:center;
+    font-family: sans-serif;
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    display: block;
+    text-decoration: none;
+}
+
+#import_button,
+#download_button
+{
+    clear: left;
+    margin: 0 10px 10px 0
+}
+
+.button:hover
+{
+    background: #555;
+}
+
+#import_input
+{
+    height: 50px;
+    line-height: 50px;
+    background: #444;
+    color: #fff;
+    border-radius: 5px;
+    float: left;
+    padding: 0 10px;
+    box-sizing: border-box;
+}
+
+</style>
+<script src="enums.js"></script>
+<script src="displayBoard.js"></script>
+</head>
+<body>
+<div id="wallButton" class="color"></div>
+<div id="eagleButton" class="color"></div>
+<div id="checkPointButton" class="color"></div>
+<div id="riverButton" class="color"></div>
+<div id="startFieldButton" class="color"></div>
+<div id="lembasFieldButton" class="color"></div>
+<div id="holeButton" class="color"></div>
+<div id="eyeButton" class="color"></div>
+<a id="download_button" class="button">SAVE</a>
+<div id="import_button" class="button">LOAD</div>
+<input type="file" accept="application/json" id="import_input">
+<script>
+let height = 10;
+let width = 10;
+let gridSize = 128;
+let s = gridSize;
+
+function BoardConfig ()
+{
+  this.name = "Kein Editor"
+  this.height = height;
+  this.width = width;
+  this.startFields = [];
+  this.checkPoints = [];
+  this.eye = null;
+  this.holes = [];
+  this.riverFields = [];
+  this.walls = [];
+  this.lembasFields = [];
+  this.eagleFields = [];
+  this.SetEye = (eye) => {this.eye = eye}
+  this.SetWall = (wall) =>
+  {
+	exists = false;
+  
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let w of this.walls)
+	{
+		
+		if(JSON.stringify(w) == JSON.stringify(wall))
+		{
+			n = i;
+			exists = true;
+		}
+		i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.walls.push(wall);
+	}
+	else
+	{
+		
+		if(n != -1)
+		{
+			this.walls.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetStartField = (startField) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+    
+	for(let sf of this.startFields)
+	{
+		if(JSON.stringify(sf) == JSON.stringify(startField))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.startFields.push(startField);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.startFields.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetRiver = (riverField) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let rf of this.riverFields)
+	{
+		if(JSON.stringify(rf) == JSON.stringify(riverField))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.riverFields.push(riverField);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.riverFields.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetCheckPoint = (checkPoint) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let cp of this.checkPoints)
+	{
+		if(JSON.stringify(cp) == JSON.stringify(checkPoint))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.checkPoints.push(checkPoint);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.checkPoints.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetEagleField = (eagleField) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let ef of this.eagleFields)
+	{
+		if(JSON.stringify(ef) == JSON.stringify(eagleField))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.eagleFields.push(eagleField);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.eagleFields.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetLembasField = (lembasField) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let ef of this.lembasFields)
+	{
+		if(JSON.stringify(ef) == JSON.stringify(lembasField))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.lembasFields.push(lembasField);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.lembasFields.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetHole = (hole) =>
+  {
+	exists = false;
+    
+	let i = 0;
+  
+	let n = -1;
+  
+	for(let h of this.holes)
+	{
+		if(JSON.stringify(h) == JSON.stringify(hole))
+		{
+            n = i;
+			exists = true;
+		}
+        i++;
+	}
+  
+  	if(!exists)
+    {
+    	this.holes.push(hole);
+    }
+    else
+	{
+		
+		if(n != -1)
+		{
+			this.holes.splice(n, 1)
+		}
+		
+	}
+  }
+  this.SetEye = (eye) =>
+  {
+    this.eye = eye;
+  }
+  this.Import = (data) =>
+  {
+    this.name = data.name;
+    this.height = height;
+    this.width = width;
+    this.startFields = data.startFields;
+    this.checkPoints = data.checkPoints;
+    this.eye = data.eye
+    this.holes = data.holes;
+    this.riverFields = data.riverFields;
+    this.walls = data.walls;
+    this.lembasFields = data.lembasFields;
+    this.eagleFields = data.eagleFields;
+    UpdateBoard(bc);
+
+  }
+}
+
+bc = new BoardConfig()
+
+eye = {};
+eye.position = [0,0];
+eye.direction = "SOUTH";
+
+bc.SetEye(eye);
+
+//console.log(bc);
+
+let field = "WALL";
+
+wallButton.addEventListener("click",() => {field = "WALL"; console.log(field)});
+eagleButton.addEventListener("click",() => {field = "EAGLE"; console.log(field)});
+checkPointButton.addEventListener("click",() => {field = "CHECKPOINT"; console.log(field)});
+riverButton.addEventListener("click",() => {field = "RIVER"; console.log(field)});
+startFieldButton.addEventListener("click",() => {field = "STARTFIELD"; console.log(field)});
+lembasFieldButton.addEventListener("click",() => {field = "LEMBAS"; console.log(field)});
+holeButton.addEventListener("click",() => {field = "HOLE"; console.log(field)});
+eyeButton.addEventListener("click",() => {field = "EYE"; console.log(field)});
+
+const canvas = document.createElement("canvas");
+canvas.height = gridSize * height;
+canvas.width = gridSize * width;
+
+c = canvas
+
+
+document.body.appendChild(canvas);
+const ctx = canvas.getContext("2d");
+
+UpdateBoard(bc);
+
+UpdateDownload();
+
+function UpdateDownload ()
+{
+    let json = JSON.stringify(bc,false,4);
+    let blob = new Blob([json], {type: 'application/json'});
+    let download_url = URL.createObjectURL(blob);
+    download_button.href = download_url;
+    download_button.classList.add("download_button");
+    download_button.download = `boardConfig.json`;
+}
+import_button.addEventListener("click", () => {
+    if (import_input.files.length > 0) {
+        const reader = new FileReader();
+
+        reader.addEventListener("load", () => {
+
+            try {
+
+                obj = JSON.parse(reader.result);
+                bc.Import(obj);
+
+            } catch (e) {
+
+                console.log(e)
+
+            }
+
+        });
+
+        if (import_input.files[0].type != 'application/json') {
+
+            //console.log("No .json was selected");
+
+        } else {
+
+            reader.readAsText(import_input.files[0]);
+
+        }
+
+    } else {
+                console.log("No file was selected");
+    }
+
+})
+//DrawCheckerBoard();
+
+function DrawCheckerBoard()
+{
+	for(let x = 0; x < width; x++)
+  {
+  	for(let y = 0; y < height; y++)
+    {
+    	if(x % 2 == y % 2)
+      {
+      	ctx.fillStyle = "#EEE";
+      }
+      else
+      {
+      	ctx.fillStyle = "#CCC";
+      }
+      ctx.fillRect(x * gridSize, y * gridSize, gridSize, gridSize);
+    }
+  }
+}
+
+let prev = {};
+
+canvas.addEventListener("mousedown", () => {canvas.addEventListener("mousemove", Draw)})
+//canvas.addEventListener("mouseleave", () => {canvas.removeEventListener("mousemove", Draw)})
+window.addEventListener("mouseup", () => {canvas.removeEventListener("mousemove", Draw)})
+
+
+function Draw(e)
+{
+	const target = e.target;
+	const rect = target.getBoundingClientRect();
+  
+	let x = (e.clientX - rect.left);
+	let y = (e.clientY - rect.top);
+  
+	let gx = Math.floor(x / gridSize);
+	let gy = Math.floor(y / gridSize);
+
+  if(prev.x != gx || prev.y != gy)
+  {
+    //console.log(gx,gy)
+  	//ctx.fillStyle = color;
+  	//ctx.fillRect(gx * gridSize, gy * gridSize, gridSize, gridSize);
+	
+	if(field == "WALL")
+	{
+    
+    let ox = x - gx * gridSize
+    let oy = y - gy * gridSize
+    
+  	let topLeft = -ox > oy - gridSize;
+    let bottoRight = !topLeft;
+    let topRight = ox > oy;
+    let bottomLeft = !topRight;
+    
+    let top = topLeft && topRight;
+    let bottom = bottoRight && bottomLeft;
+    let right = bottoRight && topRight;
+    let left = topLeft && bottomLeft;
+    
+    if(top)
+    {
+        console.log("top");
+    	bc.SetWall([[gx, gy - 1], [gx, gy]]);
+    }
+    if(bottom)
+    {
+        console.log("bottom");
+    	bc.SetWall([[gx, gy],[gx, gy + 1]]);
+    }
+    if(right)
+    {
+        console.log("right");
+    	bc.SetWall([[gx, gy],[gx + 1, gy]]);
+    }
+    if(left)
+    {
+        console.log("left");
+    	bc.SetWall([[gx - 1, gy], [gx, gy]]);
+    }
+    
+	}
+    
+    if(field == "STARTFIELD")
+    {
+        bc.SetStartField({"position" : [gx, gy], "direction" : "SOUTH"})
+    }
+    
+    if(field == "RIVER")
+    {
+        bc.SetRiver({"position" : [gx, gy], "direction" : "SOUTH"})
+    }
+    
+    if(field == "CHECKPOINT")
+    {
+        bc.SetCheckPoint([gx, gy])
+    }
+    
+    if(field == "EAGLE")
+    {
+        bc.SetEagleField([gx, gy])
+    }
+    
+    if(field == "LEMBAS")
+    {
+        bc.SetLembasField({"position" : [gx, gy], "amount" : 6})
+    }
+    
+    if(field == "HOLE")
+    {
+        bc.SetHole([gx, gy])
+    }
+    
+    if(field == "EYE")
+    {
+        bc.SetEye({"position" : [gx, gy], "direction" : "SOUTH"})
+    }
+    
+	//console.log(bc);
+	UpdateBoard(bc);
+    UpdateDownload();
+	
+  }
+  
+  prev.x = gx;
+  prev.y = gy;
+  
+}
+</script>
+</body>
+</html>
