@@ -51,6 +51,85 @@ let boardState =
         ]
     };
 
+let players = [];
+let spectators = [];
+let maxPlayerNameLength = 16;
+let gameStarted = false;
+
+let isString = value => typeof value === 'string' || value instanceof String;
+
+function GameClient (ws,name,role)
+{
+    this.token = crypto.randomUUID();;
+    this.ws = ws;
+    this.name = name;
+    this.role = role
+    this.ready = false;
+    this.addClient = (ws) => {
+
+        let canJoin = true;
+
+        if (players.length > 6) {
+            canJoin = false;
+            SendError(ws, 5);
+        }
+
+        if (this.name > maxPlayerNameLength) {
+            canJoin = false;
+            SendError(ws, 3);
+        }
+
+        if (playerNameExists(this.name)) {
+            canJoin = false;
+            SendError(ws, 2);
+        }
+
+        if (role == "PLAYER" || role == "AI") {
+
+            if (gameStarted) {
+                canJoin = false;
+                SendError(ws, 4)
+            }
+
+            if (canJoin) {
+                players.push(this);
+            }
+
+        } else if (role == "SPECTATOR") {
+            if (canJoin) {
+                players.push(this);
+            }
+        } else {
+            canJoin = false;
+            SendError(ws,0)
+        }
+        return canJoin;
+    }
+}
+
+function playerNameExists(name)
+{
+    for(let player of players)
+    {
+        if(player.name == name)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+function SendError(websocket, errorCode)
+{
+    let msg = {}
+    msg.message = "ERROR";
+    msg.data = {};
+    msg.data.errorCode = errorCode;
+    msg.data.reason = "";
+    json = JSON.stringify(msg);
+    websocket.send(json);
+}
+
 const fs = require('fs');
 
 let boardcfgdata = fs.readFileSync('boardConfig.json');
@@ -61,9 +140,7 @@ let gameConfig = JSON.parse(gamecfgdata);
 
 const crypto = require('crypto');
 
-let msg
 
-let gameStarted;
 
 // Importing the required modules
 const WebSocketServer = require('ws');
@@ -73,15 +150,20 @@ const wss = new WebSocketServer.Server({ port: 8080 })
  
 // Creating connection using websocket
 wss.on("connection", ws => {
+
     console.log("new client connected");
-    
-     gameStarted = false;
+
+    let msg
  
     //on message from client
     ws.on("message", json =>
     {
-        
-        msg = JSON.parse(json);
+        try {
+            msg = JSON.parse(json);
+        }
+        catch (e) {
+            SendInvalidMessage();
+        }
         
         console.log(msg);
         
@@ -93,27 +175,20 @@ wss.on("connection", ws => {
                 
                     if(Object.hasOwn(msg,"data"))
                     {
-                        if(Object.hasOwn(msg.data,"name"))
+                        if(Object.hasOwn(msg.data,"name") && Object.hasOwn(msg.data,"role"))
                         {
                             ws.player = msg.data.name;
+                            ws.client = new GameClient(ws, msg.data.name, msg.data.role);
                         }
                     }
-                                        
-                    ws.token = crypto.randomUUID();
-                    
-                    let hc = {}
-                    hc.message = "HELLO_CLIENT";
-                    let hcdata = {};
-                    hcdata.reconnectToken = ws.token;
-                    hcdata.boardConfig = boardConfig;
-                    hcdata.gameConfig = gameConfig;
-                    hc.data = hcdata;
-                    
-                    json = JSON.stringify(hc)
-                    
-                    ws.send(json);
-                    
-                    SendParticipantsInfo(ws);
+
+                    if(ws.client && ws.client.addClient(ws))
+                    {
+                        console.log(players.length);
+                        ws.token = ws.client.token;
+                        SendHelloClient(ws,ws.client);
+                        SendParticipantsInfo(ws);
+                    }
                     
                     break;
                     
@@ -122,12 +197,13 @@ wss.on("connection", ws => {
                     {
                         if(Object.hasOwn(msg.data,"ready"))
                         {
+                            ws.client.ready = msg.data.ready;
+
                             if(msg.data.ready && !gameStarted)
                             {
                                 SendParticipantsInfo(ws);
-                                SendGameStart(ws)
-                                gameStarted = true;
-                                SendCharacterOffer(ws);
+                                ws.client.ready = msg.data.ready;
+                                StartGame();
                             }
                         }
                     }
@@ -224,15 +300,93 @@ wss.on("connection", ws => {
 });
 console.log("The WebSocket server is running on port 8080");
 
+function GetNames(role)
+{
+    clientNames = []
+    for(let player of players)
+    {
+        if(player.role == role)
+        {
+            clientNames.push(player.name)
+        }
+    }
+    return clientNames
+}
+
+function GetReadyPlayers()
+{
+    let readyPlayers = []
+    for(let player of players)
+    {
+        if(player.ready)
+        {
+            readyPlayers.push(player.name)
+        }
+    }
+    return readyPlayers;
+}
+
+function StartGame()
+{
+    allPlayersReady = true;
+
+    for(let player of players)
+    {
+        if(player.ready == false)
+        {
+            allPlayersReady = false;
+        }
+    }
+
+    if(players.length < 2)
+    {
+        allPlayersReady = false;
+    }
+
+    if(allPlayersReady) {
+        gameStarted = true;
+
+        for (let player of players) {
+            SendGameStart(player.ws);
+        }
+        for (let player of players) {
+            SendCharacterOffer(player.ws);
+        }
+    }
+}
+
+function SendInvalidMessage()
+{
+    msg = {}
+    msg.message = "INVALID_MESSAGE";
+    msg.data = {};
+    msg.data.invalidMesasge = json;
+    json = JSON.stringify(msg);
+    ws.send(json);
+    ws.close();
+}
+
+function SendHelloClient(websocket,client)
+{
+    let msg = {}
+    msg.message = "HELLO_CLIENT";
+    msg.data = {};
+    msg.data.reconnectToken = client.token;
+    msg.data.boardConfig = boardConfig;
+    msg.data.gameConfig = gameConfig;
+    let json = JSON.stringify(msg)
+    websocket.send(json);
+}
+
 function SendParticipantsInfo(websocket)
 {
     let msg = {};
     msg.message = "PARTICIPANTS_INFO";
     msg.data = {};
-    msg.data.players = ["Player1","Player2","Player2"];
-    msg.data.spectators = ["Spectator1","Spectator2","Spectator3"];
-    msg.data.ais = ["AI1","AI2","A13"];
-    msg.data.readyPlayers = ["Player1","AI1"];
+    msg.data.players = GetNames("PLAYER");
+    msg.data.spectators = GetNames("SPECTATOR");
+    msg.data.ais = GetNames("AI")
+    msg.data.readyPlayers = GetReadyPlayers();
     let json = JSON.stringify(msg);
     websocket.send(json);
     
