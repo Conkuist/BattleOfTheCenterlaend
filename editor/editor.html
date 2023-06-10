@@ -108,11 +108,26 @@ canvas
     box-sizing: border-box;
 }
 
+    .size
+    {
+        width: 50px;
+        height: 50px;
+        line-height: 50px;
+        border-radius: 5px;
+        background: #404040;
+        float: left;
+        clear: left;
+        text-align: center;
+        color: #fff;
+        border: none;
+        margin: 0 10px 10px 0;
+    }
+
 </style>
 <script src="enums.js"></script>
 <script src="displayBoard.js"></script>
 </head>
-<body>
+<>
 <div id="wallButton" class="color"></div>
 <div id="eagleButton" class="color"></div>
 <div id="checkPointButton" class="color"></div>
@@ -124,11 +139,40 @@ canvas
 <a id="download_button" class="button">SAVE</a>
 <div id="import_button" class="button">LOAD</div>
 <input type="file" accept="application/json" id="import_input">
+<input id = "boardWidthInput" class = "size" type = "number">
+<input id = "boardHeightInput" class = "size" type = "number">
 <script>
+
+    boardWidthInput = document.getElementById("boardWidthInput");
+    boardHeightInput = document.getElementById("boardHeightInput");
+
 let height = 10;
 let width = 10;
 let gridSize = 128;
 let s = gridSize;
+
+    const canvas = document.createElement("canvas");
+    canvas.height = gridSize * height;
+    canvas.width = gridSize * width;
+
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext("2d");
+
+    c = canvas
+
+    bc = new BoardConfig()
+
+    eye = {};
+    eye.position = [0,0];
+    eye.direction = "SOUTH";
+
+    bc.SetEye(eye);
+
+boardWidthInput.value = width;
+boardHeightInput.value = height;
+
+boardHeightInput.addEventListener("input",() => {bc.SetSize(boardWidthInput.value, boardHeightInput.value)});
+boardWidthInput.addEventListener("input", () => {bc.SetSize(boardWidthInput.value, boardHeightInput.value)})
 
 function BoardConfig ()
 {
@@ -143,6 +187,12 @@ function BoardConfig ()
   this.walls = [];
   this.lembasFields = [];
   this.eagleFields = [];
+  this.SetSize = (x,y) =>
+  {
+      this.width = x;
+      this.height = y;
+      UpdateBoard(bc);
+  }
   this.SetEye = (eye) => {this.eye = eye}
   this.SetWall = (wall) =>
   {
@@ -187,7 +237,7 @@ function BoardConfig ()
     
 	for(let sf of this.startFields)
 	{
-		if(JSON.stringify(sf) == JSON.stringify(startField))
+		if(JSON.stringify(sf.position) == JSON.stringify(startField.position))
 		{
             n = i;
 			exists = true;
@@ -219,7 +269,7 @@ function BoardConfig ()
   
 	for(let rf of this.riverFields)
 	{
-		if(JSON.stringify(rf) == JSON.stringify(riverField))
+		if(JSON.stringify(rf.position) == JSON.stringify(riverField.position))
 		{
             n = i;
 			exists = true;
@@ -375,6 +425,9 @@ function BoardConfig ()
   }
   this.Import = (data) =>
   {
+      boardWidthInput.value = this.width;
+      boardHeightInput.value = this.height;
+
     this.name = data.name;
     this.height = height;
     this.width = width;
@@ -391,36 +444,50 @@ function BoardConfig ()
   }
 }
 
-bc = new BoardConfig()
-
-eye = {};
-eye.position = [0,0];
-eye.direction = "SOUTH";
-
-bc.SetEye(eye);
-
 //console.log(bc);
 
 let field = "WALL";
 
-wallButton.addEventListener("click",() => {field = "WALL"; console.log(field)});
-eagleButton.addEventListener("click",() => {field = "EAGLE"; console.log(field)});
-checkPointButton.addEventListener("click",() => {field = "CHECKPOINT"; console.log(field)});
-riverButton.addEventListener("click",() => {field = "RIVER"; console.log(field)});
-startFieldButton.addEventListener("click",() => {field = "STARTFIELD"; console.log(field)});
-lembasFieldButton.addEventListener("click",() => {field = "LEMBAS"; console.log(field)});
-holeButton.addEventListener("click",() => {field = "HOLE"; console.log(field)});
-eyeButton.addEventListener("click",() => {field = "EYE"; console.log(field)});
+wallButton.addEventListener("click",() =>
+{
+    field = "WALL";
+    //console.log(field);
+});
+eagleButton.addEventListener("click",() =>
+{
+    field = "EAGLE";
+    //console.log(field);
+});
+checkPointButton.addEventListener("click",() =>
+{
+    field = "CHECKPOINT";
+    //console.log(field);
+});
+riverButton.addEventListener("click",() =>
+{
+    field = "RIVER";
+    //console.log(field);
+});
+startFieldButton.addEventListener("click",() => {
+    field = "STARTFIELD";
+    console.log(field);
+});
+lembasFieldButton.addEventListener("click",() =>
+{
+    field = "LEMBAS";
+    //console.log(field);
+});
+holeButton.addEventListener("click",() =>
+{
+    field = "HOLE";
+    //console.log(field);
+});
+eyeButton.addEventListener("click",() =>
+{
+    field = "EYE";
+    //console.log(field);
+});
 
-const canvas = document.createElement("canvas");
-canvas.height = gridSize * height;
-canvas.width = gridSize * width;
-
-c = canvas
-
-
-document.body.appendChild(canvas);
-const ctx = canvas.getContext("2d");
 
 UpdateBoard(bc);
 
@@ -491,11 +558,12 @@ function DrawCheckerBoard()
 }
 
 let prev = {};
+let prevPos = {};
 
+canvas.addEventListener("click", () => {if(field != "RIVER" && field != "STARTFIELD"){Draw}});
 canvas.addEventListener("mousedown", () => {canvas.addEventListener("mousemove", Draw)})
 //canvas.addEventListener("mouseleave", () => {canvas.removeEventListener("mousemove", Draw)})
 window.addEventListener("mouseup", () => {canvas.removeEventListener("mousemove", Draw)})
-
 
 function Draw(e)
 {
@@ -507,6 +575,26 @@ function Draw(e)
   
 	let gx = Math.floor(x / gridSize);
 	let gy = Math.floor(y / gridSize);
+
+	let direction = Direction.SOUTH;
+
+	if(prevPos.x !== undefined && prevPos.y !== undefined)
+    {
+        let xDistance = x - prevPos.x;
+        let yDistance = y - prevPos.y;
+
+        if(Math.abs(xDistance) >= Math.abs(yDistance))
+        {
+            direction = xDistance >= 0 ? Direction.EAST : Direction.WEST;
+        }
+        else
+        {
+            direction = yDistance >= 0 ? Direction.SOUTH : Direction.NORTH;
+        }
+
+        //console.log(direction);
+
+    }
 
   if(prev.x != gx || prev.y != gy)
   {
@@ -532,22 +620,22 @@ function Draw(e)
     
     if(top)
     {
-        console.log("top");
+        //console.log("top");
     	bc.SetWall([[gx, gy - 1], [gx, gy]]);
     }
     if(bottom)
     {
-        console.log("bottom");
+        //console.log("bottom");
     	bc.SetWall([[gx, gy],[gx, gy + 1]]);
     }
     if(right)
     {
-        console.log("right");
+        //console.log("right");
     	bc.SetWall([[gx, gy],[gx + 1, gy]]);
     }
     if(left)
     {
-        console.log("left");
+        //console.log("left");
     	bc.SetWall([[gx - 1, gy], [gx, gy]]);
     }
     
@@ -555,12 +643,12 @@ function Draw(e)
     
     if(field == "STARTFIELD")
     {
-        bc.SetStartField({"position" : [gx, gy], "direction" : "SOUTH"})
+        bc.SetStartField({"position" : [gx, gy], "direction" : direction})
     }
     
     if(field == "RIVER")
     {
-        bc.SetRiver({"position" : [gx, gy], "direction" : "SOUTH"})
+        bc.SetRiver({"position" : [gx, gy], "direction" : direction})
     }
     
     if(field == "CHECKPOINT")
@@ -585,7 +673,7 @@ function Draw(e)
     
     if(field == "EYE")
     {
-        bc.SetEye({"position" : [gx, gy], "direction" : "SOUTH"})
+        bc.SetEye({"position" : [gx, gy], "direction" : direction})
     }
     
 	//console.log(bc);
@@ -596,6 +684,9 @@ function Draw(e)
   
   prev.x = gx;
   prev.y = gy;
+
+  prevPos.x = x;
+  prevPos.y = y;
   
 }
 </script>
