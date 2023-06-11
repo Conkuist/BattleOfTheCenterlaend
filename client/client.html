@@ -414,6 +414,12 @@ Message =
 </script>
 <script>
 
+    const playersList = document.getElementById("playersList");
+    const spectatorsList = document.getElementById("spectatorsList");
+    const aisList = document.getElementById("aisList");
+
+    const connectButton = document.getElementById("connectButton");
+
 let token = null;
 let myPlayerName = "Nudel";
 
@@ -473,6 +479,9 @@ function onDisconnected()
     connectButton.innerHTML = "CONNECT";
     connection.close();
     isReady = false;
+    playersList.innerHTML = "";
+    spectatorsList.innerHTML = "";
+    aisList.innerHTML = "";
 }
 
 function onMessage(event)

@@ -10,8 +10,6 @@ let gameConfig = JSON.parse(gamecfgdata);
 
 const crypto = require('crypto');
 
-
-
 // Importing the required modules
 const WebSocketServer = require('ws');
 
@@ -127,7 +125,7 @@ function GameClient (ws,name,role)
     {
         let index = clients.indexOf(this);
         if(index != -1) {
-            clients.slice(i, 1);
+            clients.splice(index, 1);
         }
     }
 }
@@ -160,15 +158,15 @@ wss.on("connection", ws => {
         
         console.log(msg);
         
-        if(Object.hasOwn(msg,"message"))
+        if(msg.hasOwnProperty("message"))
         {
             switch (msg.message)
             {
                 case Message.HELLO_SERVER:
                 
-                    if(Object.hasOwn(msg,"data"))
+                    if(msg.hasOwnProperty("data"))
                     {
-                        if(Object.hasOwn(msg.data,"name") && Object.hasOwn(msg.data,"role"))
+                        if(msg.data.hasOwnProperty("name") && msg.data.hasOwnProperty("role"))
                         {
                             if(!gameStarted)
                             {
@@ -191,7 +189,8 @@ wss.on("connection", ws => {
                     {
                          if(!gameStarted && isBoolean(msg.data.ready) && ws.client)
                          {
-                            if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI) {
+                            if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI)
+                            {
                                 ws.client.ready = msg.data.ready;
                                 SendParticipantsInfo();
                                 StartGame();
@@ -204,17 +203,19 @@ wss.on("connection", ws => {
                     
                 case Message.CHARACTER_CHOICE:
                 
-                    if(msg.hasOwnProperty("data"))
+                    if(isString(msg.data.characterChoice))
                     {
-                        if(msg.data.hasOwnProperty("cards"))
-                        {
-                            ws.player = msg.data.name;
-                        }
+                            if(ws.client.offeredCharacters.includes(msg.data.characterChoice))
+                            {
+                                ws.client.characterSelected = true;
+                                ws.client.character = msg.data.characterChoice;
+                                CharactersSelected();
+                            }
+                            else
+                            {
+                                SendError(ws,7);
+                            }
                     }
-                    
-                    SendGameState();
-                    
-                    SendCardOffer(ws);
                 
                     break;
                 
@@ -276,6 +277,7 @@ wss.on("connection", ws => {
                             {
                                 ws.client = client;
                                 ws.client.ws = ws;
+                                console.log(`\x1b[96m ${ws.client.name}\x1b[0m has reconnected`)
                                 break;
                             }
 
@@ -294,14 +296,25 @@ wss.on("connection", ws => {
  
     // handling what to do when clients disconnects from server
     ws.on("close", () => {
-        if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI)
+
+        if(ws.client instanceof GameClient && ws.client.role && (ws.client.role == Role.PLAYER || ws.client.role == Role.AI))
         {
             if(!gameStarted && ws.client.ready == false)
             {
                 ws.client.removeClient();
+                SendParticipantsInfo();
+                console.log(`\x1b[96m ${ws.client.name}\x1b[0m was removed from clients`);
+                //console.log(GetNamesByRole(Role.PLAYER));
             }
         }
-        console.log("the client has disconnected");
+        if(ws.client && isString(ws.client.name))
+        {
+            console.log(`\x1b[96m ${ws.client.name}\x1b[0m has disconnected`)
+        }
+        else
+        {
+            console.log("the client has disconnected");
+        }
     });
     // handling client connection error
     ws.onerror = function () {
@@ -310,6 +323,83 @@ wss.on("connection", ws => {
 });
 
 console.log("The WebSocket server is running on port 8080");
+
+function GetRandomDirection()
+{
+    let directions = [Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST];
+    let index = getRandomIntInclusive(0,3);
+    return directions[index];
+}
+
+function GetRandomStartField()
+{
+    /*
+    let startFields = boardConfig.startFields;
+
+    let occupiedStartFields = 0;
+
+    for(let sf of startFields)
+    {
+        if(OccupiedByPlayer(sf.position))
+        {
+            ++occupiedStartFields;
+        }
+    }
+
+    while(startFields.length < occupiedStartFields)
+    {
+        let index = getRandomIntInclusive(0, startFields.length - 1);
+        let startField = startFields[index];
+        if(!OccupiedByPlayer(startField.position))
+        {
+            return startField;
+        }
+    }
+    */
+    let startFields = boardConfig.startFields
+
+    for(let sf of startFields)
+    {
+        if(!OccupiedByPlayer(sf.position))
+        {
+            return sf;
+        }
+    }
+    console.log("ERROR ALL START FIELDS ALREADY OCCUPIED");
+
+}
+
+function OccupiedByPlayer(position)
+{
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        if(client.playerState && JSON.stringify(position) == JSON.stringify(client.playerState.currentPosition))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+function SpawnCharacter(ws)
+{
+    let playerState = {};
+    playerState.playerName = ws.client.name
+    let randomStartField = GetRandomStartField();
+    playerState.currentPosition = randomStartField.position;
+    playerState.spawnPosition = randomStartField.position;
+    playerState.direction = randomStartField.direction;
+    playerState.character = ws.client.character;
+    playerState.lives = 1;
+    playerState.lembasCount = 0;
+    playerState.suspended = 0
+    playerState.reachedCheckpoints = 0;
+    playerState.playedCards = [];
+    playerState.turnOrder = -1;
+
+
+    return playerState;
+}
 
 function GetClientsByRole(role)
 {
@@ -347,7 +437,7 @@ function SendError(websocket, errorCode)
     websocket.send(json);
 }
 
-function GetNames(role)
+function GetNamesByRole(role)
 {
     let clientNames = []
     for(let client of clients)
@@ -371,6 +461,41 @@ function GetReadyPlayers()
         }
     }
     return readyPlayers;
+}
+
+function CharactersSelected()
+{
+
+    let charactersSelected = true;
+
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+            if(!client.characterSelected)
+            {
+                charactersSelected = false;
+                break;
+            }
+    }
+
+    if(charactersSelected) {
+
+        for (let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI))) {
+            client.playerState = SpawnCharacter(client.ws);
+        }
+
+        SendGameState();
+
+        SendCardOffer();
+    }
+}
+
+function InGame()
+{
+    SendCardOffer();
+
+    SendRoundStart();
+
+    SendCardEvent();
 }
 
 function StartGame()
@@ -421,7 +546,7 @@ function SendHelloClient(websocket,client)
     msg.data.gameConfig = gameConfig;
     let json = JSON.stringify(msg)
     websocket.send(json);
-    console.log(`${client.name} joined the game`);
+    console.log(`\x1b[96m ${client.name}\x1b[0m joined the game`);
 }
 
 function SendParticipantsInfo()
@@ -431,9 +556,9 @@ function SendParticipantsInfo()
         let msg = {};
         msg.message = Message.PARTICIPANTS_INFO;
         msg.data = {};
-        msg.data.players = GetNames(Role.PLAYER);
-        msg.data.spectators = GetNames(Role.SPECTATOR);
-        msg.data.ais = GetNames(Role.AI)
+        msg.data.players = GetNamesByRole(Role.PLAYER);
+        msg.data.spectators = GetNamesByRole(Role.SPECTATOR);
+        msg.data.ais = GetNamesByRole(Role.AI)
         msg.data.readyPlayers = GetReadyPlayers();
         let json = JSON.stringify(msg);
         client.ws.send(json);
@@ -453,27 +578,33 @@ function SendGameStart()
     console.log("game started");
 }
 
-function SendRoundStart(websocket)
+function SendRoundStart()
 {
-    let msg = {};
-    msg.message = Message.ROUND_START;
-    msg.data = {};
-    msg.data.playerStates = playerStates
-    let json = JSON.stringify(msg);
-    websocket.send(json);
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.ROUND_START;
+        msg.data = {};
+        msg.data.playerStates = playerStates
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
 }
 
-function SendCardEvent(websocket)
+function SendCardEvent()
 {
-    let msg = {};
-    msg.message = Message.CARD_EVENT;
-    msg.data = {};
-    msg.data.playerName = "Player1";
-    msg.data.card = "MOVE_1";
-    msg.data.playerStates = [playerStates,playerStates];
-    msg.data.boardStates = [boardState,boardState]
-    let json = JSON.stringify(msg);
-    websocket.send(json);
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.CARD_EVENT;
+        msg.data = {};
+        msg.data.playerName = "Player1";
+        msg.data.card = "MOVE_1";
+        msg.data.playerStates = [playerStates, playerStates];
+        msg.data.boardStates = [boardState, boardState]
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
 }
                     
 function SendShotEvent(websocket)
@@ -569,6 +700,19 @@ function SendCharacterOffer()
     }
 }
 
+function GetPlayerStates()
+{
+    let playerStates = [];
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        if(client.playerState)
+        {
+            playerStates.push(client.playerState);
+        }
+    }
+    return playerStates;
+}
+
 function SendGameState()
 {
     for(let client of clients)
@@ -576,7 +720,7 @@ function SendGameState()
         let msg = {};
         msg.message = Message.GAME_STATE;
         msg.data = {};
-        msg.data.playerStates = playerStates;
+        msg.data.playerStates = GetPlayerStates();
         msg.data.boardState = boardState
         msg.data.currentRound = 69;
 
@@ -585,8 +729,7 @@ function SendGameState()
     }
 }
 
-function SendCardOffer(websocket)
-{
+function SendCardOffer(websocket) {
     let cardTypes = [
         Card.MOVE_3,
         Card.MOVE_2,
@@ -598,22 +741,25 @@ function SendCardOffer(websocket)
         Card.AGAIN,
         Card.LEMBAS
     ]
-    
-    let msg = {};
-    msg.message = Message.CARD_OFFER;
-    msg.data = {};
-    msg.data.cards = [];
-    
-    let amount = getRandomIntInclusive(7, 9);
-    
-    for(let i = 0; i < amount; i++)
+
+    for (let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
     {
-        cardIndex = getRandomIntInclusive(0, cardTypes.length - 1);
-        msg.data.cards.push(cardTypes[cardIndex])
+        let msg = {};
+        msg.message = Message.CARD_OFFER;
+        msg.data = {};
+        msg.data.cards = [];
+
+        let amount = getRandomIntInclusive(7, 9);
+
+        for (let i = 0; i < amount; i++)
+        {
+            let cardIndex = getRandomIntInclusive(0, cardTypes.length - 1);
+            msg.data.cards.push(cardTypes[cardIndex])
+        }
+
+        json = JSON.stringify(msg);
+        client.ws.send(json);
     }
-    
-    json = JSON.stringify(msg);
-    websocket.send(json);
 }
 
 function getRandomIntInclusive(min, max) {
