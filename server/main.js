@@ -151,7 +151,7 @@ wss.on("connection", ws => {
         }
         catch (e) {
             SendInvalidMessage(ws);
-            if(ws.client)
+            if(ws.client,json)
             {
                 ws.client.removeClient();
                 ws.close();
@@ -170,14 +170,15 @@ wss.on("connection", ws => {
                     {
                         if(Object.hasOwn(msg.data,"name") && Object.hasOwn(msg.data,"role"))
                         {
-                            ws.player = msg.data.name;
-                            ws.client = new GameClient(ws, msg.data.name, msg.data.role);
+                            if(!gameStarted)
+                            {
+                                ws.client = new GameClient(ws, msg.data.name, msg.data.role);
+                            }
                         }
                     }
 
-                    if(ws.client && ws.client.addClient(ws))
+                    if(!gameStarted && ws.client && ws.client.addClient(ws))
                     {
-                        //console.log(players.length);
                         ws.token = ws.client.token;
                         SendHelloClient(ws,ws.client);
                         SendParticipantsInfo();
@@ -186,34 +187,32 @@ wss.on("connection", ws => {
                     break;
                     
                 case Message.PLAYER_READY:
-                    if(Object.hasOwn(msg,"data"))
+                    if(msg.hasOwnProperty("data") && msg.data.hasOwnProperty("ready"))
                     {
-                        if(Object.hasOwn(msg.data,"ready"))
-                        {
-                            if(!gameStarted && isBoolean(msg.data.ready) && ws.client)
-                            {
-                                if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI) {
-                                    ws.client.ready = msg.data.ready;
-                                    SendParticipantsInfo();
-                                    StartGame();
-                                }
-                            }
-                        }
+                         if(!gameStarted && isBoolean(msg.data.ready) && ws.client)
+                         {
+                            if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI) {
+                                ws.client.ready = msg.data.ready;
+                                SendParticipantsInfo();
+                                StartGame();
+                             }
+                         }
+
                     }
                     
                     break;
                     
                 case Message.CHARACTER_CHOICE:
                 
-                    if(Object.hasOwn(msg,"data"))
+                    if(msg.hasOwnProperty("data"))
                     {
-                        if(Object.hasOwn(msg.data,"cards"))
+                        if(msg.data.hasOwnProperty("cards"))
                         {
                             ws.player = msg.data.name;
                         }
                     }
                     
-                    SendGameState(ws);
+                    SendGameState();
                     
                     SendCardOffer(ws);
                 
@@ -231,7 +230,7 @@ wss.on("connection", ws => {
                     
                     SendEagleEvent(ws);
                     
-                    SendGameState(ws);
+                    SendGameState();
                     
                     SendGameEnd(ws);
                 
@@ -247,7 +246,7 @@ wss.on("connection", ws => {
                     let ps = {}
                     ps.message = Message.PAUSED;
                     ps.data = {};
-                    console.log(ws.player);
+                    //console.log(ws.player + "requested pause");
                     ps.data.playerName = ws.player;
                     ps.data.paused = false;
                     if(Object.hasOwn(msg,"data"))
@@ -265,15 +264,21 @@ wss.on("connection", ws => {
                     break;
                     
                 case Message.RECONNECT:
-                    if(!this.client) {
+
+                    if(!this.client)
+                    {
+
                         let rt = msg.data.reconnectToken
+
                         for (let client of clients) {
-                            if(client.token = token)
+
+                            if(rt && client.token == rt)
                             {
                                 ws.client = client;
                                 ws.client.ws = ws;
                                 break;
                             }
+
                         }
                         SendParticipantsInfo();
                     }
@@ -283,18 +288,19 @@ wss.on("connection", ws => {
                     console.log("UNKNOWN MESSAGE");
             }
         }
-
-        // ???
-        if(Object.hasOwn(msg,"player"))
-        {
-            console.log(`Message from ${player} received`);
-        }
         
     }
     );
  
     // handling what to do when clients disconnects from server
     ws.on("close", () => {
+        if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI)
+        {
+            if(!gameStarted && ws.client.ready == false)
+            {
+                ws.client.removeClient();
+            }
+        }
         console.log("the client has disconnected");
     });
     // handling client connection error
@@ -343,7 +349,7 @@ function SendError(websocket, errorCode)
 
 function GetNames(role)
 {
-    clientNames = []
+    let clientNames = []
     for(let client of clients)
     {
         if(client.role == role)
@@ -386,24 +392,20 @@ function StartGame()
         allPlayersReady = false;
     }
 
-    if(allPlayersReady) {
+    if(allPlayersReady)
+    {
         gameStarted = true;
-
-        for (let player of players) {
-            SendGameStart(player.ws);
-        }
-        for (let player of players) {
-            SendCharacterOffer(player.ws);
-        }
+        SendGameStart();
+        SendCharacterOffer();
     }
 }
 
-function SendInvalidMessage(ws)
+function SendInvalidMessage(ws,invalidJson)
 {
     let msg = {}
     msg.message = Message.INVALID_MESSAGE;
     msg.data = {};
-    msg.data.invalidMesasge = json;
+    msg.data.invalidMesasge = invalidJson;
     let json = JSON.stringify(msg);
     ws.send(json);
     ws.close();
@@ -419,6 +421,7 @@ function SendHelloClient(websocket,client)
     msg.data.gameConfig = gameConfig;
     let json = JSON.stringify(msg)
     websocket.send(json);
+    console.log(`${client.name} joined the game`);
 }
 
 function SendParticipantsInfo()
@@ -437,13 +440,17 @@ function SendParticipantsInfo()
     }
 }
 
-function SendGameStart(websocket)
+function SendGameStart()
 {
-    let msg = {};
-    msg.message = Message.GAME_START;
-    msg.data = {};
-    let json = JSON.stringify(msg);
-    websocket.send(json);
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.GAME_START;
+        msg.data = {};
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
+    console.log("game started");
 }
 
 function SendRoundStart(websocket)
@@ -516,53 +523,93 @@ function SendGameEnd(websocket)
     websocket.send(json);
 }
 
-function SendCharacterOffer(websocket)
+
+function SendCharacterOffer()
 {
-    characters = ["FRODO","SAM","LEGOLAS","GIMLI","GANDALF","ARAGORN","GOLLUM","GALADRIEL","BOROMIR","BAUMBART","MERRY","PIPPIN","ARWEN"]
-    
-    let msg = {};
-    msg.message = Message.CHARACTER_OFFER;
-    msg.data = {};
-    msg.data.characters = [];
-    
-    for(let i = 0; i < 2; i++)
-    {
-        characterIndex = getRandomIntInclusive(0, characters.length - 1);
-        msg.data.characters.push(characters[characterIndex])
+    let characters = [
+        Character.FRODO,
+        Character.SAM,
+        Character.LEGOLAS,
+        Character.GIMLI,
+        Character.GANDALF,
+        Character.ARAGORN,
+        Character.GOLLUM,
+        Character.GALADRIEL,
+        Character.BOROMIR,
+        Character.BAUMBART,
+        Character.MERRY,
+        Character.PIPPIN,
+        Character.ARWEN
+    ]
+
+    let offeredCharacters = [];
+
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI))) {
+
+        let msg = {};
+        msg.message = Message.CHARACTER_OFFER;
+        msg.data = {};
+        msg.data.characters = [];
+
+        while(msg.data.characters.length < 2 && characters.length - offeredCharacters.length >= msg.data.characters.length)
+        {
+            let characterIndex = getRandomIntInclusive(0, characters.length - 1);
+
+            if(!offeredCharacters.includes(characters[characterIndex]))
+            {
+                offeredCharacters.push(characters[characterIndex]);
+                msg.data.characters.push(characters[characterIndex]);
+            }
+        }
+
+        client.offeredCharacters = msg.data.characters;
+
+        json = JSON.stringify(msg);
+        client.ws.send(json);
     }
-    
-    json = JSON.stringify(msg);
-    websocket.send(json);
 }
 
-function SendGameState(websocket)
+function SendGameState()
 {
-    let msg = {};
-    msg.message = Message.GAME_STATE;
-    msg.data = {};
-    msg.data.playerStates = playerStates;
-    msg.data.boardState = boardState
-    msg.data.currentRound = 69;
-    
-    json = JSON.stringify(msg);
-    websocket.send(json);
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.GAME_STATE;
+        msg.data = {};
+        msg.data.playerStates = playerStates;
+        msg.data.boardState = boardState
+        msg.data.currentRound = 69;
+
+        json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
 }
 
 function SendCardOffer(websocket)
 {
-    cardtypes = ["MOVE_3","MOVE_2","MOVE_1","MOVE_BACK","U_TURN","RIGHT_TURN","LEFT_TURN","AGAIN","LEMBAS"]
+    let cardTypes = [
+        Card.MOVE_3,
+        Card.MOVE_2,
+        Card.MOVE_1,
+        Card.MOVE_BACK,
+        Card.U_TURN,
+        Card.RIGHT_TURN,
+        Card.LEFT_TURN,
+        Card.AGAIN,
+        Card.LEMBAS
+    ]
     
     let msg = {};
     msg.message = Message.CARD_OFFER;
     msg.data = {};
     msg.data.cards = [];
     
-    let ammount = getRandomIntInclusive(7, 9);
+    let amount = getRandomIntInclusive(7, 9);
     
-    for(let i = 0; i < ammount; i++)
+    for(let i = 0; i < amount; i++)
     {
-        cardIndex = getRandomIntInclusive(0, cardtypes.length - 1);
-        msg.data.cards.push(cardtypes[cardIndex])
+        cardIndex = getRandomIntInclusive(0, cardTypes.length - 1);
+        msg.data.cards.push(cardTypes[cardIndex])
     }
     
     json = JSON.stringify(msg);

@@ -472,6 +472,7 @@ function onDisconnected()
     connected = false;
     connectButton.innerHTML = "CONNECT";
     connection.close();
+    isReady = false;
 }
 
 function onMessage(event)
