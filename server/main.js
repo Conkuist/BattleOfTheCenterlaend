@@ -2,13 +2,17 @@ const fs = require('fs');
 
 require('./enums');
 
-let boardcfgdata = fs.readFileSync('boardConfig.json');
-let boardConfig = JSON.parse(boardcfgdata);
+let boardConfigData = fs.readFileSync('boardConfig.json');
+let boardConfig = JSON.parse(boardConfigData);
 
-let gamecfgdata = fs.readFileSync('gameConfig.json');
-let gameConfig = JSON.parse(gamecfgdata);
+let gameConfigData = fs.readFileSync('gameConfig.json');
+let gameConfig = JSON.parse(gameConfigData);
+
+let roundCount = 1;
 
 const crypto = require('crypto');
+
+let eventDelay = 3000; // time in ms
 
 // Importing the required modules
 const WebSocketServer = require('ws');
@@ -185,6 +189,7 @@ wss.on("connection", ws => {
                     break;
                     
                 case Message.PLAYER_READY:
+
                     if(msg.hasOwnProperty("data") && msg.data.hasOwnProperty("ready"))
                     {
                          if(!gameStarted && isBoolean(msg.data.ready) && ws.client)
@@ -220,20 +225,17 @@ wss.on("connection", ws => {
                     break;
                 
                 case Message.CARD_CHOICE:
-                
-                    SendRoundStart(ws);
-                    
-                    SendCardEvent(ws);
-                    
-                    SendShotEvent(ws);
-                    
-                    SendRiverEvent(ws);
-                    
-                    SendEagleEvent(ws);
-                    
-                    SendGameState();
-                    
-                    SendGameEnd(ws);
+
+                    if(CardSelectionValid(ws.client.offeredCards,msg.data.cards))
+                    {
+                        ws.client.cardsSelected = true;
+                        ws.client.cards = msg.data.cards;
+                       CardsSelected();
+                    }
+                    else
+                    {
+                        SendError(ws,6);
+                    }
                 
                     break;
                 
@@ -250,9 +252,9 @@ wss.on("connection", ws => {
                     //console.log(ws.player + "requested pause");
                     ps.data.playerName = ws.player;
                     ps.data.paused = false;
-                    if(Object.hasOwn(msg,"data"))
+                    if(msg.hasOwnProperty("data"))
                     {
-                        if(Object.hasOwn(msg.data,"pause"))
+                        if(msg.data.hasOwnProperty("pause"))
                         {
                             ps.data.paused = msg.data.pause;
                         }
@@ -287,7 +289,9 @@ wss.on("connection", ws => {
                     break;
                     
                 default:
+
                     console.log("UNKNOWN MESSAGE");
+
             }
         }
         
@@ -324,6 +328,43 @@ wss.on("connection", ws => {
 
 console.log("The WebSocket server is running on port 8080");
 
+function CardSelectionValid(cardOffer,cardChoice)
+{
+    let cards = JSON.parse(JSON.stringify(cardOffer))
+    for(let card of cardChoice)
+    {
+        if(card != Card.EMPTY)
+        {
+            let index = cards.indexOf(card);
+
+            if (index != -1)
+            {
+                cards.splice(index, 1);
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+function GetPlayerStates()
+{
+    let playerStates = []
+
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        if(client.playerState)
+        {
+            playerStates.push(client.playerState)
+        }
+    }
+
+    return playerStates;
+}
+
 function GetRandomDirection()
 {
     let directions = [Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST];
@@ -333,30 +374,9 @@ function GetRandomDirection()
 
 function GetRandomStartField()
 {
-    /*
-    let startFields = boardConfig.startFields;
+    let startFields = JSON.parse(JSON.stringify(boardConfig.startFields));
 
-    let occupiedStartFields = 0;
-
-    for(let sf of startFields)
-    {
-        if(OccupiedByPlayer(sf.position))
-        {
-            ++occupiedStartFields;
-        }
-    }
-
-    while(startFields.length < occupiedStartFields)
-    {
-        let index = getRandomIntInclusive(0, startFields.length - 1);
-        let startField = startFields[index];
-        if(!OccupiedByPlayer(startField.position))
-        {
-            return startField;
-        }
-    }
-    */
-    let startFields = boardConfig.startFields
+    shuffleArray(startFields);
 
     for(let sf of startFields)
     {
@@ -489,13 +509,23 @@ function CharactersSelected()
     }
 }
 
-function InGame()
+function CardsSelected()
 {
-    SendCardOffer();
+    let cardsSelected = true;
 
-    SendRoundStart();
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        if(!client.cardsSelected)
+        {
+            cardsSelected = false;
+            break;
+        }
+    }
 
-    SendCardEvent();
+    if(cardsSelected)
+    {
+        RoundStart();
+    }
 }
 
 function StartGame()
@@ -585,7 +615,7 @@ function SendRoundStart()
         let msg = {};
         msg.message = Message.ROUND_START;
         msg.data = {};
-        msg.data.playerStates = playerStates
+        msg.data.playerStates = GetPlayerStates();
         let json = JSON.stringify(msg);
         client.ws.send(json);
     }
@@ -606,54 +636,6 @@ function SendCardEvent()
         client.ws.send(json);
     }
 }
-                    
-function SendShotEvent(websocket)
-{
-    let msg = {};
-    msg.message = Message.SHOT_EVENT;
-    msg.data = {};
-    msg.data.shooterName = "Player1";
-    msg.data.targetName = "Player2";
-    msg.data.playerStates = playerStates;
-    let json = JSON.stringify(msg);
-    websocket.send(json);
-}
-                    
-function SendRiverEvent(websocket)
-{
-    let msg = {};
-    msg.message = Message.RIVER_EVENT;
-    msg.data = {};
-    msg.data.playerName = "Player1";
-    msg.data.playerStates = [playerStates,playerStates];
-    msg.data.boardStates = [boardState,boardState]
-    let json = JSON.stringify(msg);
-    websocket.send(json);
-}
-                    
-function SendEagleEvent(websocket)
-{
-    let msg = {};
-    msg.message = Message.EAGLE_EVENT;
-    msg.data = {};
-    msg.data.playerName = "Player1";
-    msg.data.playerStates = playerStates;
-    let json = JSON.stringify(msg);
-    websocket.send(json);
-}
-                    
-function SendGameEnd(websocket)
-{
-    let msg = {};
-    msg.message = Message.GAME_END;
-    msg.data = {};
-    msg.data.playerStates = playerStates;
-    msg.data.winner = "Player1";
-    msg.data.additional = [];
-    let json = JSON.stringify(msg);
-    websocket.send(json);
-}
-
 
 function SendCharacterOffer()
 {
@@ -729,7 +711,8 @@ function SendGameState()
     }
 }
 
-function SendCardOffer(websocket) {
+function SendCardOffer()
+{
     let cardTypes = [
         Card.MOVE_3,
         Card.MOVE_2,
@@ -757,13 +740,168 @@ function SendCardOffer(websocket) {
             msg.data.cards.push(cardTypes[cardIndex])
         }
 
+        client.offeredCards = msg.data.cards;
+
         json = JSON.stringify(msg);
         client.ws.send(json);
     }
+}
+
+let timer;
+
+function RoundStart()
+{
+    SendRoundStart();
+
+    timer = setTimeout(CardEvent,eventDelay);
+}
+
+function CardEvent()
+{
+    SendCardEvent();
+
+    timer = setTimeout(ShotEvent,eventDelay);
+}
+
+function ShotEvent()
+{
+    SendShotEvent();
+
+    timer = setTimeout(RiverEvent,eventDelay);
+}
+
+function RiverEvent()
+{
+    SendRiverEvent();
+
+    timer = setTimeout(EagleEvent,eventDelay);
+}
+
+function EagleEvent()
+{
+    let playersOnEagleField = [];
+
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        for(let eagleField of boardConfig.eagleFields)
+        {
+            if(JSON.stringify(client.playerState.currentPosition) == JSON.stringify(eagleField.position))
+            {
+                playersOnEagleField.push(client);
+            }
+        }
+    }
+
+    for(let client of playersOnEagleField)
+    {
+        // TODO Randomize Order of Eagle Fields
+        for(let eagleField of boardConfig.eagleFields)
+        {
+            if(!OccupiedByPlayer(eagleField.position))
+            {
+                client.playerState.currentPosition = CopyObject(eagleField.position);
+                break;
+            }
+        }
+        SendEagleEvent(client.name);
+    }
+
+    timer = setTimeout(GameState,eventDelay);
+
+}
+
+function GameState()
+{
+    SendGameState();
+
+    if(roundCount >= gameConfig.maxRounds)
+    {
+        timer = setTimeout(GameEnd,eventDelay);
+    }
+
+}
+
+function GameEnd()
+{
+    SendGameEnd();
+}
+
+function SendShotEvent()
+{
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.SHOT_EVENT;
+        msg.data = {};
+        msg.data.shooterName = "Player1";
+        msg.data.targetName = "Player2";
+        msg.data.playerStates = GetPlayerStates();
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
+}
+
+function SendRiverEvent()
+{
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.RIVER_EVENT;
+        msg.data = {};
+        msg.data.playerName = "Player1";
+        msg.data.playerStates = [playerStates, playerStates];
+        msg.data.boardStates = [boardState, boardState]
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
+}
+
+function SendEagleEvent(playerName)
+{
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.EAGLE_EVENT;
+        msg.data = {};
+        msg.data.playerName = playerName;
+        msg.data.playerStates = GetPlayerStates();
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
+}
+
+function SendGameEnd()
+{
+    for(let client of clients)
+    {
+        let msg = {};
+        msg.message = Message.GAME_END;
+        msg.data = {};
+        msg.data.playerStates = GetPlayerStates();
+        msg.data.winner = "Player1";
+        msg.data.additional = [];
+        let json = JSON.stringify(msg);
+        client.ws.send(json);
+    }
+}
+
+function CopyObject(object)
+{
+    let copy = JSON.parse(JSON.stringify(object));
+    return copy;
 }
 
 function getRandomIntInclusive(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
+}
+
+const shuffleArray = array => {
+    for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        const temp = array[i];
+        array[i] = array[j];
+        array[j] = temp;
+    }
 }

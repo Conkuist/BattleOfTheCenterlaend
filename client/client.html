@@ -955,7 +955,7 @@ function UpdatePlayer(playerStates)
         let pos = ps.currentPosition;
         let dir = ps.direction;
         let char = ps.character;
-        DrawPlayer(pos, dir);
+        DrawPlayer(pos, dir, char);
     }   
 }
 
@@ -1038,7 +1038,7 @@ function DrawEagleField(pos)
     }
 }
 
-function DrawPlayer(pos,dir)
+function DrawPlayer(pos, dir, char)
 {
     ctx.fillStyle = "magenta";
     if(pos !== undefined && pos[0] !== undefined && pos[1] !== undefined)
@@ -1053,6 +1053,11 @@ function DrawPlayer(pos,dir)
         {
             DrawArrow(pos[0],pos[1],dir);
         }
+        ctx.fillStyle = "#000000ff";
+        ctx.textAlign = "center";
+        ctx.textBaseline = 'hanging';
+        ctx.font = "10px Arial";
+        ctx.fillText(char, (0.5 + pos[0]) * s, (pos[1]) * s);
     }
 }
 
