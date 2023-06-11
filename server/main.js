@@ -104,7 +104,7 @@ function GameClient (ws,name,role)
             SendError(ws, 2);
         }
 
-        if (role == Role.PLAYER || role == Role.AI) {
+        if (role === Role.PLAYER || role === Role.AI) {
 
             if (gameStarted) {
                 canJoin = false;
@@ -115,7 +115,7 @@ function GameClient (ws,name,role)
                 clients.push(this);
             }
 
-        } else if (role == Role.SPECTATOR) {
+        } else if (role === Role.SPECTATOR) {
             if (canJoin) {
                 clients.push(this);
             }
@@ -128,7 +128,7 @@ function GameClient (ws,name,role)
     this.removeClient = () =>
     {
         let index = clients.indexOf(this);
-        if(index != -1) {
+        if(index !== -1) {
             clients.splice(index, 1);
         }
     }
@@ -153,7 +153,7 @@ wss.on("connection", ws => {
         }
         catch (e) {
             SendInvalidMessage(ws);
-            if(ws.client,json)
+            if(ws.client)
             {
                 ws.client.removeClient();
                 ws.close();
@@ -194,7 +194,7 @@ wss.on("connection", ws => {
                     {
                          if(!gameStarted && isBoolean(msg.data.ready) && ws.client)
                          {
-                            if(ws.client.role == Role.PLAYER || ws.client.role == Role.AI)
+                            if(ws.client.role === Role.PLAYER || ws.client.role === Role.AI)
                             {
                                 ws.client.ready = msg.data.ready;
                                 SendParticipantsInfo();
@@ -250,7 +250,7 @@ wss.on("connection", ws => {
                     ps.message = Message.PAUSED;
                     ps.data = {};
                     //console.log(ws.player + "requested pause");
-                    ps.data.playerName = ws.player;
+                    ps.data.playerName = ws.client.name;
                     ps.data.paused = false;
                     if(msg.hasOwnProperty("data"))
                     {
@@ -275,7 +275,7 @@ wss.on("connection", ws => {
 
                         for (let client of clients) {
 
-                            if(rt && client.token == rt)
+                            if(rt && client.token === rt)
                             {
                                 ws.client = client;
                                 ws.client.ws = ws;
@@ -301,9 +301,9 @@ wss.on("connection", ws => {
     // handling what to do when clients disconnects from server
     ws.on("close", () => {
 
-        if(ws.client instanceof GameClient && ws.client.role && (ws.client.role == Role.PLAYER || ws.client.role == Role.AI))
+        if(ws.client instanceof GameClient && ws.client.role && (ws.client.role === Role.PLAYER || ws.client.role === Role.AI))
         {
-            if(!gameStarted && ws.client.ready == false)
+            if(!gameStarted && ws.client.ready === false)
             {
                 ws.client.removeClient();
                 SendParticipantsInfo();
@@ -333,11 +333,11 @@ function CardSelectionValid(cardOffer,cardChoice)
     let cards = JSON.parse(JSON.stringify(cardOffer))
     for(let card of cardChoice)
     {
-        if(card != Card.EMPTY)
+        if(card !== Card.EMPTY)
         {
             let index = cards.indexOf(card);
 
-            if (index != -1)
+            if (index !== -1)
             {
                 cards.splice(index, 1);
             }
@@ -393,7 +393,7 @@ function OccupiedByPlayer(position)
 {
     for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
     {
-        if(client.playerState && JSON.stringify(position) == JSON.stringify(client.playerState.currentPosition))
+        if(client.playerState && JSON.stringify(position) === JSON.stringify(client.playerState.currentPosition))
         {
             return true;
         }
@@ -426,7 +426,7 @@ function GetClientsByRole(role)
     let clientsWithRole = []
     for(let client of clients)
     {
-        if(client.role == role)
+        if(client.role === role)
         {
             clientsWithRole.push(client);
         }
@@ -438,7 +438,7 @@ function ClientNameExists(name)
 {
     for(let client of clients)
     {
-        if(client.name == name)
+        if(client.name === name)
         {
             return true;
         }
@@ -462,7 +462,7 @@ function GetNamesByRole(role)
     let clientNames = []
     for(let client of clients)
     {
-        if(client.role == role)
+        if(client.role === role)
         {
             clientNames.push(client.name)
         }
@@ -536,7 +536,7 @@ function StartGame()
 
     for(let player of players)
     {
-        if(player.ready == false)
+        if(player.ready === false)
         {
             allPlayersReady = false;
         }
@@ -621,16 +621,16 @@ function SendRoundStart()
     }
 }
 
-function SendCardEvent()
+function SendCardEvent(client,card,playerStatesArray)
 {
     for(let client of clients)
     {
         let msg = {};
         msg.message = Message.CARD_EVENT;
         msg.data = {};
-        msg.data.playerName = "Player1";
-        msg.data.card = "MOVE_1";
-        msg.data.playerStates = [playerStates, playerStates];
+        msg.data.playerName = client.player;
+        msg.data.card = card;
+        msg.data.playerStates = playerStatesArray;
         msg.data.boardStates = [boardState, boardState]
         let json = JSON.stringify(msg);
         client.ws.send(json);
@@ -680,19 +680,6 @@ function SendCharacterOffer()
         json = JSON.stringify(msg);
         client.ws.send(json);
     }
-}
-
-function GetPlayerStates()
-{
-    let playerStates = [];
-    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
-    {
-        if(client.playerState)
-        {
-            playerStates.push(client.playerState);
-        }
-    }
-    return playerStates;
 }
 
 function SendGameState()
@@ -747,6 +734,145 @@ function SendCardOffer()
     }
 }
 
+function ApplyCard(client,playerStates, card)
+{
+    let playerStatesArray = [];
+
+    client.playerState.playedCards.push(card);
+
+    switch (card)
+    {
+        case Card.MOVE_3:
+
+            MovePlayerForward(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+        case Card.MOVE_2:
+
+            MovePlayerForward(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+        case Card.MOVE_1:
+
+            MovePlayerForward(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+            break;
+
+        case Card.MOVE_BACK:
+
+            MovePlayerBackward(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+            break;
+
+        case Card.U_TURN:
+
+            ApplyCardUTurn(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+            break;
+
+        case Card.LEFT_TURN:
+
+            ApplyCardLeftTurn(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+            break;
+
+        case Card.RIGHT_TURN:
+
+            ApplyCardRightTurn(client);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+
+            break;
+
+        case Card.AGAIN:
+
+            break;
+
+        case Card.LEMBAS:
+
+            break;
+
+        case Card.EMPTY:
+
+            break;
+
+        default:
+
+            console.log("Invalid Card in Apply Card");
+
+    }
+
+    return playerStatesArray;
+
+}
+
+function InvertDirection(direction)
+{
+    return RotateDirection(direction,2);
+}
+
+function ApplyCardLeftTurn(client)
+{
+    client.playerState.direction = RotateDirection(client.playerState.direction,-1)
+}
+
+function ApplyCardRightTurn(client)
+{
+    client.playerState.direction = RotateDirection(client.playerState.direction,1)
+}
+
+function ApplyCardUTurn(client)
+{
+    client.playerState.direction = RotateDirection(client.playerState.direction,2);
+}
+
+function RotateDirection(direction,i)
+{
+
+    let directions = [Direction.NORTH, Direction.EAST, Direction.SOUTH, Direction.WEST];
+    let index = directions.indexOf(direction);
+    let dl = directions.length;
+    return directions[(((index + i) % dl) + dl) % dl];
+}
+
+function MovePlayerBackward(client)
+{
+    MovePlayer(client,InvertDirection(client.playerState.direction));
+}
+
+function MovePlayerForward(client)
+{
+    MovePlayer(client, client.playerState.direction)
+}
+
+function MovePlayer(client,direction)
+{
+    let x = client.playerState.currentPosition[0];
+    let y = client.playerState.currentPosition[1];
+
+    let dx = 0;
+    let dy = 0;
+
+    switch (direction) {
+        case Direction.NORTH:
+            dy -= 1;
+            break;
+        case Direction.EAST:
+            dx += 1;
+            break;
+        case Direction.SOUTH:
+            dy += 1;
+            break;
+        case Direction.WEST:
+            dx -= 1;
+    }
+
+    client.playerState.currentPosition = [x + dx, y + dy];
+}
+
 let timer;
 
 function RoundStart()
@@ -758,7 +884,14 @@ function RoundStart()
 
 function CardEvent()
 {
-    SendCardEvent();
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        let card = client.cards.shift();
+        let playerStatesArray = ApplyCard(client, CopyObject(GetPlayerStates()), card);
+
+        SendCardEvent(client, card, playerStatesArray);
+
+    }
 
     timer = setTimeout(ShotEvent,eventDelay);
 }
@@ -785,7 +918,7 @@ function EagleEvent()
     {
         for(let eagleField of boardConfig.eagleFields)
         {
-            if(JSON.stringify(client.playerState.currentPosition) == JSON.stringify(eagleField.position))
+            if(JSON.stringify(client.playerState.currentPosition) === JSON.stringify(eagleField.position))
             {
                 playersOnEagleField.push(client);
             }
@@ -887,8 +1020,7 @@ function SendGameEnd()
 
 function CopyObject(object)
 {
-    let copy = JSON.parse(JSON.stringify(object));
-    return copy;
+    return JSON.parse(JSON.stringify(object));
 }
 
 function getRandomIntInclusive(min, max) {
