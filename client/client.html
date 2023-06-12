@@ -420,6 +420,9 @@ Message =
 
     const connectButton = document.getElementById("connectButton");
 
+    const confirm_card_choice = document.getElementById("confirm_card_choice");
+
+
 let token = null;
 let myPlayerName = "Nudel";
 
@@ -498,8 +501,8 @@ function onMessage(event)
         return
     }
 
-    msg = json.message;
-    data = json.data;
+    let msg = json.message;
+    let data = json.data;
 
     switch (msg)
     {
@@ -521,7 +524,7 @@ function onMessage(event)
             
         case Message.CHARACTER_OFFER:
         
-            chars = data.characters;
+            let chars = data.characters;
             
             character_offer = chars;
             selected_character = null;
@@ -532,7 +535,7 @@ function onMessage(event)
             
         case Message.CARD_OFFER:
         
-            cards = data.cards;
+            let cards = data.cards;
             
             card_offer = cards;
             card_choice = [];
@@ -544,24 +547,25 @@ function onMessage(event)
             
         case Message.ROUND_START:
         
-            roundstarted = true;
-            playerstates = data.playerstates;
+            //roundstarted = true;
+            //playerStates = data.playerStates;
+            UpdatePlayer(data.playerStates);
             break;
             
         case Message.CARD_EVENT:
         
-            playerName = data.playerName;
-            playerStates = data.playerStates
-            card = data.card;
+            //playerName = data.playerName;
+            //playerStates = data.playerStates;
+            //card = data.card;
             
-            for(let ps of playerStates)
+            for(let ps of data.playerStates)
             {
                 UpdatePlayer(ps);
             }
             
-            boardStates = data.boardStates;
+            //boardStates = data.boardStates;
             
-            for(let bs of boardStates)
+            for(let bs of data.boardStates)
             {
                 for (let e in bs)
                 {
@@ -574,26 +578,26 @@ function onMessage(event)
             
         case Message.SHOT_EVENT:
         
-            shooterName = data.shooterName;
-            targetName = data.targetName;
-            playerStates = data.playerStates;
+            //shooterName = data.shooterName;
+            //targetName = data.targetName;
+            //playerStates = data.playerStates;
             
-            UpdatePlayer(playerStates);
+            UpdatePlayer(data.playerStates);
             
             break;
             
         case Message.RIVER_EVENT:
         
-            playerName = data.playerName;
-            playerStates = data.playerStates;
-            boardStates = data.boardStates;
+            //playerName = data.playerName;
+            //playerStates = data.playerStates;
+            //boardStates = data.boardStates;
             
-            for(ps of playerStates)
+            for(let ps of data.playerStates)
             {
                 UpdatePlayer(ps);
             }
             
-            for(let bs of boardStates)
+            for(let bs of data.boardStates)
             {
                 for (let e in bs)
                 {
@@ -606,37 +610,37 @@ function onMessage(event)
             
         case Message.EAGLE_EVENT:
         
-            playerName = data.playerName;
-            playerStates = data.playerStates;
+            //playerName = data.playerName;
+            //playerStates = data.playerStates;
             
-            UpdatePlayer(playerStates);
+            UpdatePlayer(data.playerStates);
             
             break;
             
         case Message.GAME_STATE:
         
-            playerStates = data.playerStates;
-            boardStates = data.boardState;
+            //playerStates = data.playerStates;
+            //boardStates = data.boardState;
             let currentRound = data.currentRound;
             
-            for (let e in boardStates)
+            for (let e in data.boardState)
             {
-                boardConfig[e] = boardStates[e];
+                boardConfig[e] = data.boardState[e];
             }
             
             UpdateBoard(boardConfig);
-            UpdatePlayer(playerStates);
+            UpdatePlayer(data.playerStates);
             UpdateRound(currentRound);
             
             break;
             
         case Message.GAME_END:
         
-            playerStates = data.playerStates;
-            winner = data.winner;
-            additional = data.additional;
+            //playerStates = data.playerStates;
+            //winner = data.winner;
+            //additional = data.additional;
             
-            UpdatePlayer(playerStates);
+            UpdatePlayer(data.playerStates);
             
             console.log("game has ended");
             
@@ -644,7 +648,7 @@ function onMessage(event)
             
         case Message.PAUSED:
         
-            playerName = data.playerName;
+            //playerName = data.playerName;
             paused = data.paused;
             
             break;
@@ -657,7 +661,7 @@ function onMessage(event)
         
         case Message.INVALID_MESSAGE:
         
-            invalidMessage = data.invalidMessage;
+            //invalidMessage = data.invalidMessage;
             
             break;
         
@@ -961,34 +965,34 @@ function UpdatePlayer(playerStates)
 
 function DisplayCardOffer(cards)
 {
-    let cardbox = document.body.querySelectorAll("#cards .card");
+    let cardBox = document.body.querySelectorAll("#cards .card");
     
-    for(let i = 0; i < cardbox.length; i++)
+    for(let i = 0; i < cardBox.length; i++)
     {
         if(i < cards.length)
         {
-            cardbox[i].innerHTML = cards[i];
+            cardBox[i].innerHTML = cards[i];
         }
         else
         {
-            cardbox[i].innerHTML = "";
+            cardBox[i].innerHTML = "";
         }
     }
 }
 
 function DisplayCardChoice(cards)
 {
-    let cardbox = document.body.querySelectorAll("#cards_choice .card");
+    let cardBox = document.body.querySelectorAll("#cards_choice .card");
     
-    for(let i = 0; i < cardbox.length; i++)
+    for(let i = 0; i < cardBox.length; i++)
     {
         if(i < cards.length)
         {
-            cardbox[i].innerHTML = cards[i];
+            cardBox[i].innerHTML = cards[i];
         }
         else
         {
-            cardbox[i].innerHTML = "";
+            cardBox[i].innerHTML = "";
         }
     }
 }

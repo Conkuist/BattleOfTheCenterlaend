@@ -17,7 +17,7 @@ let eventDelay = 3000; // time in ms
 // Importing the required modules
 const WebSocketServer = require('ws');
 
-
+/*
 let playerStates =
     [
         {
@@ -55,6 +55,7 @@ let playerStates =
             "turnOrder": 2
         }
     ];
+*/
 
 let boardState =
     {
@@ -365,12 +366,14 @@ function GetPlayerStates()
     return playerStates;
 }
 
+/*
 function GetRandomDirection()
 {
     let directions = [Direction.NORTH,Direction.EAST,Direction.SOUTH,Direction.WEST];
     let index = getRandomIntInclusive(0,3);
     return directions[index];
 }
+*/
 
 function GetRandomStartField()
 {
@@ -411,7 +414,7 @@ function SpawnCharacter(ws)
     playerState.direction = randomStartField.direction;
     playerState.character = ws.client.character;
     playerState.lives = 1;
-    playerState.lembasCount = 0;
+    playerState.lembasCount = gameConfig.startLembas;
     playerState.suspended = 0
     playerState.reachedCheckpoints = 0;
     playerState.playedCards = [];
@@ -499,8 +502,10 @@ function CharactersSelected()
 
     if(charactersSelected) {
 
-        for (let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI))) {
+        for (let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+        {
             client.playerState = SpawnCharacter(client.ws);
+            client.characterSelected = false;
         }
 
         SendGameState();
@@ -524,6 +529,11 @@ function CardsSelected()
 
     if(cardsSelected)
     {
+        for(let client of clients)
+        {
+            client.cardsSelected = false;
+        }
+
         RoundStart();
     }
 }
@@ -691,7 +701,7 @@ function SendGameState()
         msg.data = {};
         msg.data.playerStates = GetPlayerStates();
         msg.data.boardState = boardState
-        msg.data.currentRound = 69;
+        msg.data.currentRound = roundCount;
 
         json = JSON.stringify(msg);
         client.ws.send(json);
@@ -789,14 +799,18 @@ function ApplyCard(client,playerStates, card)
 
         case Card.AGAIN:
 
+            // TODO store and repeat last move
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
             break;
 
         case Card.LEMBAS:
 
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
             break;
 
         case Card.EMPTY:
 
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
             break;
 
         default:
@@ -875,8 +889,15 @@ function MovePlayer(client,direction)
 
 let timer;
 
+let eventLoop = 0;
+
 function RoundStart()
 {
+    for(let client of clients)
+    {
+        client.playerState.playedCards = [];
+    }
+
     SendRoundStart();
 
     timer = setTimeout(CardEvent,eventDelay);
@@ -951,6 +972,18 @@ function GameState()
     {
         timer = setTimeout(GameEnd,eventDelay);
     }
+    else {
+        if(eventLoop < 5)
+        {
+            timer = setTimeout(CardEvent, eventDelay);
+            ++eventLoop;
+        }
+        else
+        {
+            eventLoop = 0;
+            timer = setTimeout(SendCardOffer, eventDelay);
+        }
+    }
 
 }
 
@@ -982,8 +1015,8 @@ function SendRiverEvent()
         msg.message = Message.RIVER_EVENT;
         msg.data = {};
         msg.data.playerName = "Player1";
-        msg.data.playerStates = [playerStates, playerStates];
-        msg.data.boardStates = [boardState, boardState]
+        msg.data.playerStates = [GetPlayerStates()];
+        msg.data.boardStates = [boardState]
         let json = JSON.stringify(msg);
         client.ws.send(json);
     }
