@@ -168,7 +168,12 @@ wss.on("connection", ws => {
             switch (msg.message)
             {
                 case Message.HELLO_SERVER:
-                
+
+                    if(ws.client)
+                    {
+                        break;
+                    }
+
                     if(msg.hasOwnProperty("data"))
                     {
                         if(msg.data.hasOwnProperty("name") && msg.data.hasOwnProperty("role"))

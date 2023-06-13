@@ -1,0 +1,142 @@
+Index: client/client.html
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- client/client.html	(revision eeb8649c5b3d12dd02ee750d05e9b2322e2ca7c1)
++++ client/client.html	(date 1686636239969)
+@@ -288,7 +288,6 @@
+             <div id="aisList"></div>
+             <br>
+         </div>
+-        
+         <div id="legend">
+             <div class = "player">PLAYER</div>
+             <div class = "start-field">START FIELD</div>
+@@ -300,6 +299,9 @@
+             <div class = "lembas-field">LEMBAS FIELD</div>
+             <div class = "eagle-field">EAGLE FIELD</div>
+         </div>
++        <div id = "errors" class = "box">
++            ERRORS<br>
++        </div>
+     
+     </div>
+     
+@@ -423,7 +425,7 @@
+     const confirm_card_choice = document.getElementById("confirm_card_choice");
+ 
+ 
+-let token = null;
++let token = localStorage.getItem("token");
+ let myPlayerName = "Nudel";
+ 
+ let card_offer = [];
+@@ -507,7 +509,8 @@
+     switch (msg)
+     {
+         case Message.HELLO_CLIENT:
+-        
++
++            localStorage.setItem("token",data.reconnectToken)
+             token = data.reconnectToken;
+             boardConfig = data.boardConfig;
+             UpdateBoard(boardConfig);
+@@ -667,48 +670,36 @@
+         
+         case Message.ERROR:
+         
+-            code = data.errorCode;
+-            reason = data.reason;
+-            
+-            switch (code)
++            let code = data.errorCode;
++            let reason = data.reason;
++
++            let error = document.createElement("div");
++            document.getElementById("errors").appendChild(error);
++
++            const errorText =
++                [
++                    "0 : Allgemeiner Fehlercode (Global)",
++                    "1 : Nicht möglich zu Verbinden (Global)",
++                    "2 : Name ist bereits vergeben (Login)",
++                    "3 : Name ist zu lang (Login)",
++                    "4 : Partie hat bereits angefangen (Login)",
++                    "5 : Die maximale Anzahl an Spielern ist bereits im Spiel (Login)",
++                    "6: keine valide Kartenauswahl (Ingame)",
++                    "7 : keine valide Charakterauswahl (Ingame)",
++                    "8 : Kartenauswahltimeout (Ingame)",
++                    "9 : Charakterauswahltimeout (Ingame)",
++                    "10: Partie ist pausiert (Ingame, Pause)",
++                ]
++
++            if(errorText[code])
+             {
+-                case 0:
+-                    console.log("0 : Allgemeiner Fehlercode (Global)");
+-                    break;
+-                case 1:
+-                    console.log("1 : Nicht möglich zu Verbinden (Global)");
+-                    break;
+-                case 2:
+-                    console.log("2 : Name ist bereits vergeben (Login)");
+-                    break;
+-                case 3:
+-                    console.log("3 : Name ist zu lang (Login)");
+-                    break;
+-                case 4:
+-                    console.log("4 : Partie hat bereits angefangen (Login)");
+-                    break;
+-                case 5:
+-                    console.log("5 : Die maximale Anzahl an Spielern ist bereits im Spiel (Login)");
+-                    break;
+-                case 6:
+-                    console.log("6: keine valide Kartenauswahl (Ingame)");
+-                    break;
+-                case 7:
+-                    console.log("7 : keine valide Charakterauswahl (Ingame)");
+-                    break;
+-                case 8:
+-                    console.log("8 : Kartenauswahltimeout (Ingame)");
+-                    break;
+-                case 9:
+-                    console.log("9 : Charakterauswahltimeout (Ingame)");
+-                    break;
+-                case 10:
+-                    console.log("10: Partie ist pausiert (Ingame, Pause)");
+-                    break;
+-                default:
+-                    console.log("unknown error code");
+-                
++                error.innerHTML = errorText[code];
++            }
++            else
++            {
++                error.innerHTML = "unknown error code";
+             }
++
+             break;
+         
+         default:
+Index: server/main.js
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+--- server/main.js	(revision eeb8649c5b3d12dd02ee750d05e9b2322e2ca7c1)
++++ server/main.js	(date 1686634178784)
+@@ -168,7 +168,12 @@
+             switch (msg.message)
+             {
+                 case Message.HELLO_SERVER:
+-                
++
++                    if(ws.client)
++                    {
++                        break;
++                    }
++
+                     if(msg.hasOwnProperty("data"))
+                     {
+                         if(msg.data.hasOwnProperty("name") && msg.data.hasOwnProperty("role"))
