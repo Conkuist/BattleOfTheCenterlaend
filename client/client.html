@@ -560,14 +560,9 @@ function onMessage(event)
             //playerName = data.playerName;
             //playerStates = data.playerStates;
             //card = data.card;
-            
-            for(let ps of data.playerStates)
-            {
-                UpdatePlayer(ps);
-            }
-            
+
             //boardStates = data.boardStates;
-            
+
             for(let bs of data.boardStates)
             {
                 for (let e in bs)
@@ -575,6 +570,13 @@ function onMessage(event)
                     boardConfig[e] = bs[e];
                 }
                 UpdateBoard(boardConfig);
+            }
+
+            // update players after board to draw them on top
+
+            for(let ps of data.playerStates)
+            {
+                UpdatePlayer(ps);
             }
             
             break;
@@ -595,11 +597,6 @@ function onMessage(event)
             //playerStates = data.playerStates;
             //boardStates = data.boardStates;
             
-            for(let ps of data.playerStates)
-            {
-                UpdatePlayer(ps);
-            }
-            
             for(let bs of data.boardStates)
             {
                 for (let e in bs)
@@ -607,6 +604,13 @@ function onMessage(event)
                     boardConfig[e] = bs[e];
                 }
                 UpdateBoard(boardConfig);
+            }
+
+            // update players after board to draw them on top
+
+            for(let ps of data.playerStates)
+            {
+                UpdatePlayer(ps);
             }
 
             break;
@@ -630,7 +634,9 @@ function onMessage(event)
             {
                 boardConfig[e] = data.boardState[e];
             }
-            
+
+            // update players after board to draw them on top
+
             UpdateBoard(boardConfig);
             UpdatePlayer(data.playerStates);
             UpdateRound(currentRound);
@@ -990,17 +996,17 @@ function DisplayCardChoice(cards)
 
 function DisplayCharacterOffer(character)
 {
-    let charbox = document.body.querySelectorAll("#character .character");
+    let charBox = document.body.querySelectorAll("#character .character");
     
-    for(let i = 0; i < charbox.length; i++)
+    for(let i = 0; i < charBox.length; i++)
     {
         if(i < character.length)
         {
-            charbox[i].innerHTML = character[i];
+            charBox[i].innerHTML = character[i];
         }
         else
         {
-            charbox[i].innerHTML = "";
+            charBox[i].innerHTML = "";
         }
     }
     

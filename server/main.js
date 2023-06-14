@@ -1149,6 +1149,17 @@ function ShowClients()
 
 }
 
+function TestRiver()
+{
+    let message = `{"message":"RIVER_EVENT","data":{"playerName":"Player1","playerStates":[[{"playerName":"Affe","currentPosition":[5,6],"spawnPosition":[5,8],"direction":"NORTH","character":"GIMLI","lives":1,"lembasCount":1,"suspended":0,"reachedCheckpoints":0,"playedCards":["MOVE_2","EMPTY","EMPTY"],"turnOrder":-1},{"playerName":"Pizza","currentPosition":[4,6],"spawnPosition":[4,8],"direction":"NORTH","character":"MERRY","lives":1,"lembasCount":1,"suspended":0,"reachedCheckpoints":0,"playedCards":["MOVE_2","EMPTY","EMPTY"],"turnOrder":-1}]],"boardStates":[{"lembasFields":[{"position":[0,9],"amount":6},{"position":[9,0],"amount":6}]}]}}`
+
+    for(let client of clients)
+    {
+        client.ws.send(message);
+    }
+
+}
+
 const stdin = process.openStdin();
 
 stdin.addListener("data", function(d) {
@@ -1184,6 +1195,9 @@ stdin.addListener("data", function(d) {
             break;
         case "clients":
             ShowClients()
+            break;
+        case "testRiver":
+            TestRiver()
             break;
         default:
             console.log("command not found");
