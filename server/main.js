@@ -10,6 +10,8 @@ let gameConfig = JSON.parse(gameConfigData);
 
 let roundCount = 1;
 
+let showMessages = true;
+
 const crypto = require('crypto');
 
 let eventDelay = 3000; // time in ms
@@ -78,6 +80,16 @@ let gameStarted = false;
 
 let isString = value => typeof value === 'string' || value instanceof String;
 let isBoolean = value => typeof  value === 'boolean' || value instanceof Boolean
+let isRole = value => {
+    for(let role in Role)
+    {
+        if(role == value)
+        {
+            return true;
+        }
+    }
+    return false;
+}
 
 function GameClient (ws,name,role)
 {
@@ -160,8 +172,10 @@ wss.on("connection", ws => {
                 ws.close();
             }
         }
-        
-        console.log(msg);
+        if(showMessages)
+        {
+            console.log(msg);
+        }
         
         if(msg.hasOwnProperty("message"))
         {
@@ -187,9 +201,12 @@ wss.on("connection", ws => {
 
                     if(!gameStarted && ws.client && ws.client.addClient(ws))
                     {
-                        ws.token = ws.client.token;
                         SendHelloClient(ws,ws.client);
                         SendParticipantsInfo();
+                    }
+                    else
+                    {
+                        ws.client = null;
                     }
                     
                     break;
@@ -463,6 +480,7 @@ function SendError(websocket, errorCode)
     msg.data.reason = "";
     json = JSON.stringify(msg);
     websocket.send(json);
+    console.log(`\x1b[91mError ${errorCode}\x1b[0m`)
 }
 
 function GetNamesByRole(role)
@@ -1075,3 +1093,38 @@ const shuffleArray = array => {
         array[j] = temp;
     }
 }
+
+const stdin = process.openStdin();
+
+stdin.addListener("data", function(d) {
+    // note:  d is an object, and when converted to a string it will
+    // end with a linefeed.  so we (rather crudely) account for that
+    // with toString() and then trim()
+
+    let input = d.toString().trim();
+
+    switch (input)
+    {
+        case "help":
+            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1");
+            break;
+        case "logLevel 0":
+            {
+                showMessages = false;
+                console.log("display messages disabled");
+            }
+            break;
+        case "logLevel 1":
+        {
+            showMessages = true;
+            console.log("display messages enabled");
+            break;
+        }
+        case "exit":
+            console.log("exit console");
+            break;
+        default:
+            console.log("command not found");
+    }
+
+});
