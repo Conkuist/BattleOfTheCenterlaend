@@ -1119,7 +1119,7 @@ const shuffleArray = array => {
 
 function RestartServer()
 {
-    for(let client of cöients)
+    for(let client of clients)
     {
         client.ws.close();
     }
