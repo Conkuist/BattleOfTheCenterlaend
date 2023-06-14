@@ -1130,6 +1130,25 @@ function RestartServer()
     oardConfig = JSON.parse(boardConfigData);
 }
 
+function ShowClients()
+{
+    let clientNames = [];
+
+    for(let client of clients)
+    {
+        clientNames.push(`${client.name} (${client.role})`)
+    }
+
+    if(clientNames.length > 0) {
+        console.log("list of clients:\n" + clientNames.join("\n"))
+    }
+    else
+    {
+        console.log("no clients found");
+    }
+
+}
+
 const stdin = process.openStdin();
 
 stdin.addListener("data", function(d) {
@@ -1142,7 +1161,7 @@ stdin.addListener("data", function(d) {
     switch (input)
     {
         case "help":
-            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1 \n restart");
+            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1 \n restart \n clients");
             break;
         case "logLevel 0":
             {
@@ -1162,6 +1181,9 @@ stdin.addListener("data", function(d) {
         case "restart":
             RestartServer();
             console.log("server restarted");
+            break;
+        case "clients":
+            ShowClients()
             break;
         default:
             console.log("command not found");
