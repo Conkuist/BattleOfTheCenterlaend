@@ -83,7 +83,7 @@ let isBoolean = value => typeof  value === 'boolean' || value instanceof Boolean
 let isRole = value => {
     for(let role in Role)
     {
-        if(role == value)
+        if(role === value)
         {
             return true;
         }
@@ -910,6 +910,11 @@ function MovePlayer(client,direction)
     client.playerState.currentPosition = [x + dx, y + dy];
 }
 
+function RiverMovePlayer()
+{
+
+}
+
 let timer;
 
 let eventLoop = 0;
@@ -949,6 +954,24 @@ function ShotEvent()
 
 function RiverEvent()
 {
+    let playersOnRiverField = [];
+
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        for(let riverField of boardConfig.riverFields)
+        {
+            if(JSON.stringify(client.playerState.currentPosition) == JSON.stringify((riverField.position)))
+            {
+                playersOnRiverField.push({"client" : client, "river": riverField});
+            }
+        }
+    }
+
+    for(let playerOnRiverField of playersOnRiverField)
+    {
+        RiverMovePlayer(playerOnRiverField.client, playerOnRiverField.river.direction);
+    }
+
     SendRiverEvent();
 
     timer = setTimeout(EagleEvent,eventDelay);
@@ -1094,6 +1117,19 @@ const shuffleArray = array => {
     }
 }
 
+function RestartServer()
+{
+    for(let client of cöients)
+    {
+        client.ws.close();
+    }
+
+    clients = [];
+    gameStarted = false;
+    roundCount = 1;
+    oardConfig = JSON.parse(boardConfigData);
+}
+
 const stdin = process.openStdin();
 
 stdin.addListener("data", function(d) {
@@ -1106,7 +1142,7 @@ stdin.addListener("data", function(d) {
     switch (input)
     {
         case "help":
-            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1");
+            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1 \n restart");
             break;
         case "logLevel 0":
             {
@@ -1122,6 +1158,10 @@ stdin.addListener("data", function(d) {
         }
         case "exit":
             console.log("exit console");
+            break;
+        case "restart":
+            RestartServer();
+            console.log("server restarted");
             break;
         default:
             console.log("command not found");
