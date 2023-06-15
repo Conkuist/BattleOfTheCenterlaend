@@ -974,6 +974,42 @@ function RiverMovePlayer(client,river)
     return playerStatesArray;
 }
 
+function PositionOnBoard(position)
+{
+    let x = position[0];
+    let y = position[1];
+
+    let w = boardConfig.width;
+    let h = boardConfig.height;
+
+    if(x >= 0 && x < w && y >= 0 && y < h)
+    {
+        return true;
+    }
+    else
+    {
+        return false;
+    }
+}
+
+function GetTarget(position,direction)
+{
+    let target = CopyObject(position);
+
+    while(!OccupiedByPlayer(target) && PositionOnBoard(target))
+    {
+        target = GetNextField(target, direction);
+    }
+    if(OccupiedByPlayer(target))
+    {
+        return GetPlayerByPosition(target);
+    }
+    else
+    {
+        return false;
+    }
+}
+
 let timer;
 
 let eventLoop = 0;
@@ -1004,9 +1040,30 @@ function CardEvent()
     timer = setTimeout(ShotEvent,eventDelay);
 }
 
+function GetPlayerByPosition(position)
+{
+    for(let client of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        if(client.playerState.currentPosition === position)
+        {
+            return client;
+        }
+    }
+    return false;
+}
+
 function ShotEvent()
 {
-    SendShotEvent();
+    // TODO check for obstacles that block shots
+    // TODO Change playerStates after shot
+    for(let shooter of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
+    {
+        let target = GetTarget(shooter.playerState.currentPosition,shooter.playerState.direction)
+        if(target !== false)
+        {
+            SendShotEvent(shooter,target)
+        }
+    }
 
     timer = setTimeout(RiverEvent,eventDelay);
 }
@@ -1098,19 +1155,20 @@ function GameEnd()
     SendGameEnd();
 }
 
-function SendShotEvent()
+function SendShotEvent(shooter,target)
 {
     for(let client of clients)
     {
         let msg = {};
         msg.message = Message.SHOT_EVENT;
         msg.data = {};
-        msg.data.shooterName = "Player1";
-        msg.data.targetName = "Player2";
+        msg.data.shooterName = shooter.name;
+        msg.data.targetName = target.name;
         msg.data.playerStates = GetPlayerStates();
         let json = JSON.stringify(msg);
         client.ws.send(json);
     }
+
 }
 
 function SendRiverEvent(client,playerStates)
@@ -1185,7 +1243,8 @@ function RestartServer()
     clients = [];
     gameStarted = false;
     roundCount = 1;
-    oardConfig = JSON.parse(boardConfigData);
+    // TODO Ke sure correct config is laoded after board config was changed in console
+    boardConfig = JSON.parse(boardConfigData);
 }
 
 function ShowClients()
