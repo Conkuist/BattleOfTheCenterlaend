@@ -911,6 +911,8 @@ function MovePlayer(client,direction)
     // TODO Check if other player on target Field
     // TODO Check if player on target field can be moved
     // TODO Move player that is on target Field
+    // TODO Check for Lembas Field and modify playerstates
+    // TODO Check for checkpoint and track vidited checkpoints
     client.playerState.currentPosition = [x + dx, y + dy];
 }
 
@@ -1056,6 +1058,7 @@ function ShotEvent()
 {
     // TODO check for obstacles that block shots
     // TODO Change playerStates after shot
+    // TODO Check if player has enough lembas to fire a shot
     for(let shooter of GetClientsByRole(Role.PLAYER).concat(GetClientsByRole(Role.AI)))
     {
         let target = GetTarget(shooter.playerState.currentPosition,shooter.playerState.direction)
