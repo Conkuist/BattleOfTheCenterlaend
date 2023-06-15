@@ -220,6 +220,7 @@ wss.on("connection", ws => {
                             if(ws.client.role === Role.PLAYER || ws.client.role === Role.AI)
                             {
                                 ws.client.ready = msg.data.ready;
+                                console.log(`${ws.client.name} is ready ${msg.data.ready}`);
                                 SendParticipantsInfo();
                                 StartGame();
                              }
@@ -906,13 +907,71 @@ function MovePlayer(client,direction)
         case Direction.WEST:
             dx -= 1;
     }
-
+    // TODO Check if player can move to target Field (check for walls)
+    // TODO Check if other player on target Field
+    // TODO Check if player on target field can be moved
+    // TODO Move player that is on target Field
     client.playerState.currentPosition = [x + dx, y + dy];
 }
 
-function RiverMovePlayer()
+function IsRiver(position)
+{
+    for(let river of boardConfig.riverFields)
+    {
+        if(JSON.stringify(river.position) === JSON.stringify(position))
+        {
+            return river;
+        }
+    }
+    return false;
+}
+
+function GetNextField(position,direction)
+{
+    if(!position)
+    {
+        console.log("no position in GetNextField");
+        return false;
+    }
+
+    let x = position[0];
+    let y = position[1];
+
+    switch (direction) {
+        case Direction.NORTH:
+            y -= 1;
+            break;
+        case Direction.EAST:
+            x += 1;
+            break;
+        case Direction.SOUTH:
+            y += 1;
+            break;
+        case Direction.WEST:
+            x -= 1;
+            break;
+        default:
+            console.log("Invalid direction in GetNextFiled");
+    }
+
+    return [x,y];
+
+}
+
+function RiverMovePlayer(client,river)
 {
 
+    let playerStatesArray = [];
+
+    for(let i = 0; i < gameConfig.riverMoveCount; i++)
+    {
+        if(IsRiver(client.playerState.currentPosition).direction !== false && IsRiver(GetNextField(client.playerState.currentPosition)) !== false) // 2nd condition : only move if target is also river ??
+        {
+            MovePlayer(client, IsRiver(client.playerState.currentPosition).direction);
+            playerStatesArray.push(CopyObject(GetPlayerStates()));
+        }
+    }
+    return playerStatesArray;
 }
 
 let timer;
@@ -969,10 +1028,11 @@ function RiverEvent()
 
     for(let playerOnRiverField of playersOnRiverField)
     {
-        RiverMovePlayer(playerOnRiverField.client, playerOnRiverField.river.direction);
+        let playerStatesArray = RiverMovePlayer(playerOnRiverField.client, playerOnRiverField.river);
+        SendRiverEvent(playerOnRiverField.client, playerStatesArray);
+
     }
 
-    SendRiverEvent();
 
     timer = setTimeout(EagleEvent,eventDelay);
 }
@@ -1053,19 +1113,17 @@ function SendShotEvent()
     }
 }
 
-function SendRiverEvent()
+function SendRiverEvent(client,playerStates)
 {
-    for(let client of clients)
-    {
         let msg = {};
         msg.message = Message.RIVER_EVENT;
         msg.data = {};
         msg.data.playerName = "Player1";
-        msg.data.playerStates = [GetPlayerStates()];
+        msg.data.playerStates = playerStates; // [GetPlayerStates()]
         msg.data.boardStates = [boardState]
         let json = JSON.stringify(msg);
         client.ws.send(json);
-    }
+
 }
 
 function SendEagleEvent(playerName)
@@ -1160,6 +1218,37 @@ function TestRiver()
 
 }
 
+
+function LoadBoardConfig(path)
+{
+    // TODO Check if BoardConfig is valid
+    if(fs.existsSync(path))
+    {
+        let data = fs.readFileSync(path);
+        boardConfig = JSON.parse(data);
+        console.log(`BoardConfig \x1b[96m ${path}\x1b[0m loaded`);
+    }
+    else
+    {
+        console.log(`BoardConfig \x1b[96m ${path}\x1b[0m not loaded`);
+    }
+}
+
+function LoadGameConfig(path)
+{
+    // TODO Check if GameConfig is valid
+    if(fs.existsSync(path))
+    {
+        let data = fs.readFileSync(path);
+        gameConfig = JSON.parse(data);
+        console.log("GameConfig loaded");
+    }
+    else
+    {
+        console.log("GameConfig not loaded");
+    }
+}
+
 const stdin = process.openStdin();
 
 stdin.addListener("data", function(d) {
@@ -1169,23 +1258,29 @@ stdin.addListener("data", function(d) {
 
     let input = d.toString().trim();
 
-    switch (input)
+    let parameter = input.split(/\s+/);
+
+    switch (parameter[0])
     {
         case "help":
-            console.log("list of commands: \n exit \n logLevel 0 \n logLevel 1 \n restart \n clients");
+            console.log("list of commands: \n exit \n logLevel 0 \n logLevel level \n restart \n clients \n loadGameConfig path \n loadBoardConfig path");
             break;
-        case "logLevel 0":
+        case "logLevel":
             {
-                showMessages = false;
-                console.log("display messages disabled");
+                switch (parseInt(parameter[1])) {
+                    case 0:
+                        showMessages = false;
+                        console.log("display messages disabled");
+                        break;
+
+                    default:
+                        showMessages = true;
+                        console.log("display messages enabled");
+
+                }
+
             }
             break;
-        case "logLevel 1":
-        {
-            showMessages = true;
-            console.log("display messages enabled");
-            break;
-        }
         case "exit":
             console.log("exit console");
             break;
@@ -1198,6 +1293,12 @@ stdin.addListener("data", function(d) {
             break;
         case "testRiver":
             TestRiver()
+            break;
+        case "loadBoardConfig":
+            LoadBoardConfig(parameter[1]);
+            break;
+        case "loadGameConfig":
+            LoadGameConfig(parameter[1]);
             break;
         default:
             console.log("command not found");
